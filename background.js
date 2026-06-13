@@ -168,7 +168,7 @@ async function startTracking(tab) {
     streak: { lastActiveDate: getTodayKey() },
   });
 
-  console.log(`[FlowSpace] ▶ Tracking: ${title}`);
+  console.log(`[FlowSpace] > Tracking: ${title}`);
 }
 
 async function pauseTracking(reason) {
@@ -192,7 +192,7 @@ async function pauseTracking(reason) {
   };
 
   await chrome.storage.local.set({ trackingState: paused, dailyData: updatedDaily });
-  console.log(`[FlowSpace] ⏸ Paused (${reason})`);
+  console.log(`[FlowSpace] || Paused (${reason})`);
 }
 
 async function resumeTracking() {
@@ -218,7 +218,7 @@ async function resumeTracking() {
     pauseReason: null,
   });
 
-  console.log('[FlowSpace] ▶ Resumed');
+  console.log('[FlowSpace] > Resumed');
 }
 
 async function stopTracking() {
@@ -294,7 +294,7 @@ async function periodicSave() {
     dailyData: updatedDaily,
   });
 
-  console.log(`[FlowSpace] ✓ Saved ${legSeconds}s — daily total: ${updatedDaily.totalSeconds}s`);
+  console.log(`[FlowSpace] + Saved ${legSeconds}s -- daily total: ${updatedDaily.totalSeconds}s`);
 }
 
 // ============================================================

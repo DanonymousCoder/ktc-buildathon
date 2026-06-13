@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   function renderPausedView(state) {
     if (pausedDocEl) {
-      pausedDocEl.textContent = `📄 ${state.currentPdfTitle || 'Unknown PDF'}`;
+      pausedDocEl.textContent = state.currentPdfTitle || 'Unknown PDF';
     }
     if (pausedSessionEl) {
       const secs = Math.floor((state.sessionAccumulatedMs || 0) / 1000);
