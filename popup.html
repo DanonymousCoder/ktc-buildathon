@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowSpace PDF Tracker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- Global App Header -->
+  <header class="app-header">
+    <h1 id="app-title" class="app-title">FlowSpace</h1>
+    <div class="header-actions">
+      <button class="icon-btn" title="History" aria-label="View history">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </button>
+      <button class="icon-btn" title="Settings" aria-label="Open settings">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- VIEW 1: No PDF Open (Library) -->
+    <section id="view-empty" class="view hidden">
+      <div class="empty-state">
+        <div class="empty-icon-wrap">
+          <svg class="icon empty-doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h2 class="empty-title">No PDF Open</h2>
+        <p class="subtitle">Open any PDF in Chrome and tracking will start automatically.</p>
+      </div>
+
+      <div class="logic-card">
+        <span class="card-label">TRACKING LOGIC</span>
+        <ul class="status-list">
+          <li class="status-item">
+            <div class="status-item-left">
+              <span class="status-dot green"></span>
+              Active PDF viewing
+            </div>
+            <svg class="icon status-icon active-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </li>
+          <li class="status-item">
+            <div class="status-item-left">
+              <span class="status-dot green"></span>
+              Active reading time
+            </div>
+            <svg class="icon status-icon active-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </li>
+          <li class="status-item muted">
+            <div class="status-item-left">
+              <span class="status-dot grey"></span>
+              Background tabs
+            </div>
+            <svg class="icon status-icon muted-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </li>
+          <li class="status-item muted">
+            <div class="status-item-left">
+              <span class="status-dot grey"></span>
+              Idle time
+            </div>
+            <svg class="icon status-icon muted-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- VIEW 2: Live Tracking (Screen 5) -->
+    <section id="view-tracking" class="view hidden">
+      <header class="view-header">
+        <h1 class="view-title">Flow Space</h1>
+        <div class="header-actions">
+          <button class="icon-btn" title="History" aria-label="View history">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </button>
+          <button class="icon-btn" title="Settings" aria-label="Open settings">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="timer-display">
+        <span class="label">TODAY'S READING TIME</span>
+        <h2 class="time" id="live-time">0m</h2>
+        <div class="status-indicator">
+          <span class="dot active"></span>
+          Active PDF detected
+        </div>
+      </div>
+
+      <div class="live-status">
+        <span class="label">LIVE TRACKING STATUS</span>
+        <div class="badge-group">
+          <span class="badge active" id="badge-pdf">
+            <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            PDF ACTIVE
+          </span>
+          <span class="badge active" id="badge-user">
+            <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            USER ACTIVE
+          </span>
+          <span class="badge active" id="badge-tracking">
+            <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            TRACKING RUNNING
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: Paused -->
+    <section id="view-paused" class="view hidden">
+      <div class="paused-header">
+        <h2>Tracking Paused</h2>
+        <p>You appear to be inactive.</p>
+      </div>
+
+      <div class="info-card">
+        <span class="card-label">ACTIVE DOCUMENT</span>
+        <div class="doc-name" id="paused-doc-name">Unknown PDF</div>
+        <div class="divider"></div>
+        <div class="session-info">
+          <span class="label">SESSION SO FAR</span>
+          <span class="value" id="paused-session-time">0m</span>
+        </div>
+      </div>
+
+      <div class="system-status-card">
+        <span class="card-label">SYSTEM STATUS</span>
+        <ul class="status-list">
+          <li class="status-item">
+            <div class="status-item-left">
+              <span class="status-dot green"></span>
+              PDF Open
+            </div>
+            <svg class="icon status-icon active-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </li>
+          <li class="status-item">
+            <div class="status-item-left">
+              <span class="status-dot yellow"></span>
+              User Active
+            </div>
+            <svg class="icon status-icon warn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </li>
+          <li class="status-item muted">
+            <div class="status-item-left">
+              <span class="status-dot grey"></span>
+              Tracking Running
+            </div>
+            <svg class="icon status-icon muted-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </li>
+        </ul>
+      </div>
+
+      <button id="resume-btn" class="primary-btn">Resume Manually</button>
+      <p class="helper-text">Tracking resumes automatically when activity is detected.</p>
+    </section>
+
+    <!-- VIEW 4: Dashboard -->
+    <section id="view-dashboard" class="view">
+      <div class="timer-display">
+        <span class="label">TODAY'S READING TIME</span>
+        <h2 class="time" id="dashboard-time">0m</h2>
+        <div class="status-indicator" id="dashboard-status">
+          <span class="dot active"></span>
+          Active Session
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-icon-wrap">
+            <svg class="icon stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <span class="stat-label">OPENED</span>
+          <span class="stat-value" id="stat-opened">0</span>
+        </div>
+        <div class="stat-box">
+          <div class="stat-icon-wrap">
+            <svg class="icon stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <span class="stat-label">LONGEST</span>
+          <span class="stat-value" id="stat-longest">0m</span>
+        </div>
+        <div class="stat-box">
+          <div class="stat-icon-wrap">
+            <svg class="icon stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+              <polyline points="17 6 23 6 23 12"/>
+            </svg>
+          </div>
+          <span class="stat-label">STREAK</span>
+          <span class="stat-value" id="stat-streak">None</span>
+        </div>
+      </div>
+
+      <div class="recent-pdfs">
+        <h3 class="recent-heading">Recent PDFs</h3>
+        <div id="recent-pdfs-list">
+          <p class="empty-recent">No PDFs tracked yet today.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-target="view-dashboard" aria-label="Dashboard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" data-target="view-tracking" aria-label="Live tracking">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span>Live</span>
+    </button>
+    <button class="nav-item" data-target="view-paused" aria-label="Paused">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+      </svg>
+      <span>Paused</span>
+    </button>
+    <button class="nav-item" data-target="view-empty" aria-label="Library">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <span>Library</span>
+    </button>
+  </nav>
+
+  <script src="popup.js"></script>
+</body>
+</html>
