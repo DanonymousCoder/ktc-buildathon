@@ -1,39 +1,58 @@
-// FlowSpace PDF Tracker — Background Service Worker
-// Responsibilities:
-//   1. Detect when a PDF tab is active in the focused window
-//   2. Start/pause/stop tracking based on tab focus + user idle state
-//   3. Persist elapsed time to chrome.storage.local every minute via chrome.alarms
-//   4. Save per-session data (PDF title, duration) to recentSessions
+// FlowTrakka PDF Tracker - Manifest V3 background service worker
+//
+// Sprint 2 engine:
+// - Store reading totals in chrome.storage.local under daily_logs and documents.
+// - Track active PDF tab state with Chrome tab events.
+// - Track user activity with chrome.idle.
+// - Add one heartbeat minute to the active document and today's total only when
+//   the user is active and a PDF is active.
 
-// ============================================================
-// HELPERS
-// ============================================================
+const HEARTBEAT_ALARM = 'flowtrakka-heartbeat';
+const HEARTBEAT_SECONDS = 60;
+const IDLE_THRESHOLD_SECONDS = 60;
+const PDF_VIEWER_EXTENSION_ID = 'mhjfbmdgcfjbbpaeojofohoefgiehjai';
+const MESSAGE_ACTIONS = {
+  GET_TRACKING_STATE: 'GET_TRACKING_STATE',
+  RESUME_TRACKING: 'RESUME_TRACKING',
+};
 
-/** Returns today's date as "YYYY-MM-DD" in local time */
+let isUserActive = true;
+let isPdfActive = false;
+let activeDocumentId = null;
+let activeDocumentUrl = null;
+let activeDocumentTitle = null;
+let activeTabId = null;
+let activeLegStartedAt = null;
+
 function getTodayKey() {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-/** Returns true if the tab URL points to a PDF */
-function isPdfUrl(url) {
+function isPdfUrl(url = '') {
   if (!url) return false;
-  // .pdf before an optional query string / hash / end-of-string
-  if (/\.pdf(\?|#|$)/i.test(url)) return true;
-  // Chrome's built-in PDF viewer (varies by Chrome version)
-  if (url.startsWith('chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/')) return true;
-  return false;
+
+  if (/\.pdf(?:[?#]|$)/i.test(url)) return true;
+
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'chrome-extension:' &&
+      parsed.hostname === PDF_VIEWER_EXTENSION_ID
+    );
+  } catch {
+    return false;
+  }
 }
 
-/** Extract a readable PDF filename from a tab */
 function getPdfTitle(tab) {
-  // Chrome often sets the tab title to the filename
-  if (tab.title && tab.title !== tab.url && !tab.title.endsWith('- Google Chrome')) {
+  if (tab?.title && tab.title !== tab.url && !tab.title.endsWith('- Google Chrome')) {
     return tab.title.replace(/ - PDF.*$/i, '').trim();
   }
+
   try {
     const path = new URL(tab.url).pathname;
     return decodeURIComponent(path.split('/').pop()) || 'Unknown PDF';
@@ -42,381 +61,317 @@ function getPdfTitle(tab) {
   }
 }
 
-/** Guess a category from the PDF filename */
+function getDocumentId(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function guessCategory(title) {
-  const t = title.toLowerCase();
-  if (/research|paper|journal|study|survey/.test(t)) return 'RESEARCH';
-  if (/system|architect|design|pattern|infra/.test(t)) return 'ARCHITECTURE';
-  if (/ai|machine|neural|learning|deep|gpt|llm/.test(t)) return 'TECHNOLOGY';
-  if (/finance|econom|market|invest|budget/.test(t)) return 'FINANCE';
-  if (/law|legal|regulation|compliance|policy/.test(t)) return 'LEGAL';
-  if (/medical|health|clinical|drug|pharma/.test(t)) return 'MEDICAL';
+  const text = title.toLowerCase();
+  if (/research|paper|journal|study|survey/.test(text)) return 'RESEARCH';
+  if (/system|architect|design|pattern|infra/.test(text)) return 'ARCHITECTURE';
+  if (/ai|machine|neural|learning|deep|gpt|llm/.test(text)) return 'TECHNOLOGY';
+  if (/finance|econom|market|invest|budget/.test(text)) return 'FINANCE';
+  if (/law|legal|regulation|compliance|policy/.test(text)) return 'LEGAL';
+  if (/medical|health|clinical|drug|pharma/.test(text)) return 'MEDICAL';
   return 'DOCUMENT';
 }
 
-// ============================================================
-// DEFAULT STATE SHAPES
-// ============================================================
+function getFromStorage(keys) {
+  return new Promise(resolve => chrome.storage.local.get(keys, resolve));
+}
 
-const EMPTY_TRACKING = {
-  status: 'inactive',          // 'inactive' | 'tracking' | 'paused'
-  currentTabId: null,
-  currentPdfUrl: null,
-  currentPdfTitle: null,
-  sessionStartTimestamp: null, // when the current running leg started
-  sessionAccumulatedMs: 0,     // ms saved from previous legs of this session
-  pauseReason: null,           // 'idle' | 'unfocused' | 'manual'
-};
+function setInStorage(values) {
+  return new Promise(resolve => chrome.storage.local.set(values, resolve));
+}
 
-function freshDailyData() {
+async function getDailyLogs() {
+  const { daily_logs } = await getFromStorage(['daily_logs']);
+  return daily_logs || {};
+}
+
+async function setDailyLogs(dailyLogs) {
+  await setInStorage({ daily_logs: dailyLogs });
+}
+
+async function getDocuments() {
+  const { documents } = await getFromStorage(['documents']);
+  return documents || {};
+}
+
+async function setDocuments(documents) {
+  await setInStorage({ documents });
+}
+
+function createDailyLog(date) {
   return {
-    date: getTodayKey(),
-    totalSeconds: 0,
-    pdfsOpened: 0,
-    longestSessionSeconds: 0,
-    openedPdfUrls: [],         // dedup guard — track which URLs were opened today
+    date,
+    total_seconds: 0,
+    documents: {},
+    updated_at: new Date().toISOString(),
   };
 }
 
-// ============================================================
-// STORAGE ACCESSORS
-// ============================================================
-
-function readStorage() {
-  return new Promise(resolve => {
-    chrome.storage.local.get(
-      ['trackingState', 'dailyData', 'recentSessions', 'streak'],
-      result => {
-        // Roll over daily data if it's a new day
-        let daily = result.dailyData || freshDailyData();
-        if (daily.date !== getTodayKey()) {
-          daily = freshDailyData();
-        }
-        resolve({
-          state:    result.trackingState  || { ...EMPTY_TRACKING },
-          daily,
-          sessions: result.recentSessions || [],
-          streak:   result.streak         || { lastActiveDate: null },
-        });
-      }
-    );
-  });
-}
-
-function writeTracking(trackingState) {
-  return new Promise(resolve => chrome.storage.local.set({ trackingState }, resolve));
-}
-
-// ============================================================
-// TIMING HELPERS
-// ============================================================
-
-/** Ms elapsed in the current running leg (0 if paused/inactive) */
-function runningLegMs(state) {
-  if (state.status === 'tracking' && state.sessionStartTimestamp) {
-    return Date.now() - state.sessionStartTimestamp;
-  }
-  return 0;
-}
-
-/** Total session duration in ms */
-function totalSessionMs(state) {
-  return (state.sessionAccumulatedMs || 0) + runningLegMs(state);
-}
-
-// ============================================================
-// CORE TRACKING ACTIONS
-// ============================================================
-
-async function startTracking(tab) {
-  const { state, daily, sessions, streak } = await readStorage();
-
-  // Already tracking this exact tab — no-op
-  if (state.status === 'tracking' && state.currentTabId === tab.id) return;
-
-  // Finish the previous session if there was one
-  if (state.status !== 'inactive' && state.currentPdfUrl) {
-    await finaliseSession(state, daily, sessions);
-  }
-
-  const { daily: freshDaily } = await readStorage(); // re-read after finalise
-
-  const title = getPdfTitle(tab);
-  const isNewPdf = !freshDaily.openedPdfUrls.includes(tab.url);
-
-  const newState = {
-    status: 'tracking',
-    currentTabId: tab.id,
-    currentPdfUrl: tab.url,
-    currentPdfTitle: title,
-    sessionStartTimestamp: Date.now(),
-    sessionAccumulatedMs: 0,
-    pauseReason: null,
-  };
-
-  const updatedDaily = {
-    ...freshDaily,
-    pdfsOpened: freshDaily.pdfsOpened + (isNewPdf ? 1 : 0),
-    openedPdfUrls: isNewPdf
-      ? [...freshDaily.openedPdfUrls, tab.url]
-      : freshDaily.openedPdfUrls,
-  };
-
-  await chrome.storage.local.set({
-    trackingState: newState,
-    dailyData: updatedDaily,
-    streak: { lastActiveDate: getTodayKey() },
-  });
-
-  console.log(`[FlowSpace] > Tracking: ${title}`);
-}
-
-async function pauseTracking(reason) {
-  const { state, daily } = await readStorage();
-  if (state.status !== 'tracking') return;
-
-  const legMs = runningLegMs(state);
-  const addedSeconds = Math.floor(legMs / 1000);
-
-  const paused = {
-    ...state,
-    status: 'paused',
-    sessionStartTimestamp: null,
-    sessionAccumulatedMs: (state.sessionAccumulatedMs || 0) + legMs,
-    pauseReason: reason || 'manual',
-  };
-
-  const updatedDaily = {
-    ...daily,
-    totalSeconds: (daily.totalSeconds || 0) + addedSeconds,
-  };
-
-  await chrome.storage.local.set({ trackingState: paused, dailyData: updatedDaily });
-  console.log(`[FlowSpace] || Paused (${reason})`);
-}
-
-async function resumeTracking() {
-  const { state } = await readStorage();
-  if (state.status !== 'paused' || !state.currentPdfUrl) return;
-
-  // Verify the PDF tab still exists and is a PDF
-  try {
-    const tab = await chrome.tabs.get(state.currentTabId);
-    if (!tab || !isPdfUrl(tab.url)) {
-      await stopTracking();
-      return;
-    }
-  } catch {
-    await stopTracking();
-    return;
-  }
-
-  await writeTracking({
-    ...state,
-    status: 'tracking',
-    sessionStartTimestamp: Date.now(),
-    pauseReason: null,
-  });
-
-  console.log('[FlowSpace] > Resumed');
-}
-
-async function stopTracking() {
-  const { state, daily, sessions } = await readStorage();
-  if (state.status === 'inactive') return;
-
-  await finaliseSession(state, daily, sessions);
-  await writeTracking({ ...EMPTY_TRACKING });
-  console.log('[FlowSpace] ■ Stopped');
-}
-
-/** Save final session duration and update longestSession in daily stats */
-async function finaliseSession(state, daily, sessions) {
-  const sessionSeconds = Math.floor(totalSessionMs(state) / 1000);
-  if (sessionSeconds < 5) return; // ignore accidental blips
-
-  // Build session record
-  const title = state.currentPdfTitle || 'Unknown PDF';
-  const record = {
-    id: Date.now(),
-    pdfTitle: title,
-    pdfUrl: state.currentPdfUrl,
+function createDocument({ id, url, title }) {
+  const now = new Date().toISOString();
+  return {
+    id,
+    url,
+    title,
     category: guessCategory(title),
-    seconds: sessionSeconds,
-    date: getTodayKey(),
+    total_seconds: 0,
+    first_opened_at: now,
+    last_read_at: now,
   };
-
-  const updatedSessions = [record, ...sessions].slice(0, 20); // keep last 20
-
-  const newLongest = Math.max(daily.longestSessionSeconds || 0, sessionSeconds);
-
-  // Flush any in-flight running leg seconds into daily total
-  const legSeconds = Math.floor(runningLegMs(state) / 1000);
-  const updatedDaily = {
-    ...daily,
-    totalSeconds: (daily.totalSeconds || 0) + legSeconds,
-    longestSessionSeconds: newLongest,
-  };
-
-  await chrome.storage.local.set({
-    dailyData: updatedDaily,
-    recentSessions: updatedSessions,
-  });
 }
 
-// ============================================================
-// PERIODIC SAVE (every 1 minute via chrome.alarms)
-// Saves the running leg to daily total without resetting state,
-// then resets sessionStartTimestamp to avoid double-counting.
-// ============================================================
-async function periodicSave() {
-  const { state, daily } = await readStorage();
-  if (state.status !== 'tracking' || !state.sessionStartTimestamp) return;
-
-  const legMs = runningLegMs(state);
-  const legSeconds = Math.floor(legMs / 1000);
-  if (legSeconds < 1) return;
-
-  const updatedDaily = {
-    ...daily,
-    totalSeconds: (daily.totalSeconds || 0) + legSeconds,
+function buildTrackingState() {
+  return {
+    status: isPdfActive ? (isUserActive ? 'tracking' : 'paused') : 'inactive',
+    isUserActive,
+    isPdfActive,
+    currentTabId: activeTabId,
+    currentDocumentId: activeDocumentId,
+    currentPdfUrl: activeDocumentUrl,
+    currentPdfTitle: activeDocumentTitle,
+    activeLegStartedAt,
+    pauseReason: isPdfActive && !isUserActive ? 'idle' : null,
   };
-
-  // Reset start timestamp; zero the unconfirmed leg from accumulated
-  const updatedState = {
-    ...state,
-    sessionAccumulatedMs: (state.sessionAccumulatedMs || 0) + legMs,
-    sessionStartTimestamp: Date.now(),
-  };
-
-  await chrome.storage.local.set({
-    trackingState: updatedState,
-    dailyData: updatedDaily,
-  });
-
-  console.log(`[FlowSpace] + Saved ${legSeconds}s -- daily total: ${updatedDaily.totalSeconds}s`);
 }
 
-// ============================================================
-// MASTER CHECK — reads active tab and updates state accordingly
-// ============================================================
-async function checkCurrentState() {
-  let activeTab;
-  try {
-    const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    activeTab = tabs[0];
-  } catch {
+async function publishTrackingState() {
+  await setInStorage({ trackingState: buildTrackingState() });
+}
+
+async function ensureDocumentForTab(tab) {
+  const documentId = getDocumentId(tab.url);
+  const title = getPdfTitle(tab);
+  const documents = await getDocuments();
+
+  if (!documents[documentId]) {
+    documents[documentId] = createDocument({
+      id: documentId,
+      url: tab.url,
+      title,
+    });
+    await setDocuments(documents);
+  }
+
+  activeDocumentId = documentId;
+  activeDocumentUrl = tab.url;
+  activeDocumentTitle = documents[documentId].title || title;
+  activeTabId = tab.id;
+}
+
+async function setActivePdfFromTab(tab) {
+  if (!tab || !isPdfUrl(tab.url)) {
+    isPdfActive = false;
+    activeDocumentId = null;
+    activeDocumentUrl = null;
+    activeDocumentTitle = null;
+    activeTabId = null;
+    activeLegStartedAt = null;
+    await publishTrackingState();
     return;
   }
 
-  const onPdf = activeTab ? isPdfUrl(activeTab.url) : false;
-  const { state } = await readStorage();
+  const previousDocumentId = activeDocumentId;
+  isPdfActive = true;
+  await ensureDocumentForTab(tab);
+  if (isUserActive && (!activeLegStartedAt || previousDocumentId !== activeDocumentId)) {
+    activeLegStartedAt = Date.now();
+  }
+  await publishTrackingState();
+}
 
-  if (onPdf) {
-    // Check system idle state (threshold: 60s)
-    const idleState = await chrome.idle.queryState(60);
-
-    if (idleState === 'active') {
-      if (state.status === 'tracking' && state.currentTabId === activeTab.id) {
-        // Already tracking — nothing to do
-      } else if (state.status === 'paused' && state.currentTabId === activeTab.id) {
-        await resumeTracking();
-      } else {
-        await startTracking(activeTab);
-      }
-    } else {
-      // System is idle
-      if (state.status === 'tracking') {
-        await pauseTracking('idle');
-      }
-    }
-  } else {
-    // No PDF in the foreground
-    if (state.status !== 'inactive') {
-      await stopTracking();
-    }
+async function checkCurrentTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    await setActivePdfFromTab(tab);
+  } catch (error) {
+    console.warn('[FlowTrakka] Unable to inspect active tab', error);
   }
 }
 
-// ============================================================
-// CHROME EVENT LISTENERS
-// ============================================================
+async function addHeartbeatMinute() {
+  if (!isUserActive || !isPdfActive || !activeDocumentId) return;
+
+  const today = getTodayKey();
+  const now = new Date().toISOString();
+  const [dailyLogs, documents] = await Promise.all([getDailyLogs(), getDocuments()]);
+
+  const currentDocument =
+    documents[activeDocumentId] ||
+    createDocument({
+      id: activeDocumentId,
+      url: activeDocumentUrl,
+      title: activeDocumentTitle || 'Unknown PDF',
+    });
+
+  const currentDailyLog = dailyLogs[today] || createDailyLog(today);
+  const dailyDocument = currentDailyLog.documents[activeDocumentId] || {
+    document_id: activeDocumentId,
+    title: currentDocument.title,
+    url: currentDocument.url,
+    seconds: 0,
+  };
+
+  documents[activeDocumentId] = {
+    ...currentDocument,
+    total_seconds: (currentDocument.total_seconds || 0) + HEARTBEAT_SECONDS,
+    last_read_at: now,
+  };
+
+  dailyLogs[today] = {
+    ...currentDailyLog,
+    total_seconds: (currentDailyLog.total_seconds || 0) + HEARTBEAT_SECONDS,
+    documents: {
+      ...currentDailyLog.documents,
+      [activeDocumentId]: {
+        ...dailyDocument,
+        seconds: (dailyDocument.seconds || 0) + HEARTBEAT_SECONDS,
+        last_read_at: now,
+      },
+    },
+    updated_at: now,
+  };
+
+  activeLegStartedAt = Date.now();
+
+  await setInStorage({
+    daily_logs: dailyLogs,
+    documents,
+    trackingState: buildTrackingState(),
+  });
+
+  console.log(`[FlowTrakka] Added ${HEARTBEAT_SECONDS}s to ${currentDocument.title}`);
+}
+
+function startHeartbeat() {
+  chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 1 });
+}
+
+async function refreshRuntimeState() {
+  try {
+    const idleState = await chrome.idle.queryState(IDLE_THRESHOLD_SECONDS);
+    isUserActive = idleState === 'active';
+  } catch {
+    isUserActive = true;
+  }
+
+  if (!isUserActive) {
+    activeLegStartedAt = null;
+  }
+
+  await checkCurrentTab();
+}
+
+async function initializeEngine() {
+  chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
+  startHeartbeat();
+  await refreshRuntimeState();
+}
+
+async function handleHeartbeatAlarm() {
+  await refreshRuntimeState();
+  await addHeartbeatMinute();
+}
+
+async function getTrackingSnapshot() {
+  const [dailyLogs, documents] = await Promise.all([getDailyLogs(), getDocuments()]);
+  return {
+    trackingState: buildTrackingState(),
+    daily_logs: dailyLogs,
+    documents,
+  };
+}
+
+async function sendTrackingSnapshot(sendResponse) {
+  await checkCurrentTab();
+  sendResponse(await getTrackingSnapshot());
+}
+
+async function resumeTrackingManually(sendResponse) {
+  isUserActive = true;
+  if (isPdfActive) {
+    activeLegStartedAt = Date.now();
+  }
+
+  await checkCurrentTab();
+  await publishTrackingState();
+  sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
+}
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[FlowSpace] Installed');
-  chrome.alarms.create('periodicSave', { periodInMinutes: 1 });
-  chrome.idle.setDetectionInterval(60);
-  checkCurrentState();
+  initializeEngine();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  console.log('[FlowSpace] Startup');
-  chrome.alarms.create('periodicSave', { periodInMinutes: 1 });
-  chrome.idle.setDetectionInterval(60);
-  checkCurrentState();
+  initializeEngine();
 });
 
-// User switches between tabs
 chrome.tabs.onActivated.addListener(() => {
-  checkCurrentState();
+  checkCurrentTab();
 });
 
-// Tab URL changes (e.g. navigating to a PDF)
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'complete') {
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
-      if (tabs[0] && tabs[0].id === tabId) checkCurrentState();
-    });
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' && !changeInfo.url) return;
+  if (tab.active) {
+    checkCurrentTab();
   }
 });
 
-// Tab is closed — stop tracking if it was the tracked tab
-chrome.tabs.onRemoved.addListener(async tabId => {
-  const { state } = await readStorage();
-  if (state.currentTabId === tabId) {
-    await stopTracking();
+chrome.tabs.onRemoved.addListener(tabId => {
+  if (tabId === activeTabId) {
+    setActivePdfFromTab(null);
   }
 });
 
-// Chrome window gains / loses focus
-chrome.windows.onFocusChanged.addListener(async windowId => {
+chrome.windows.onFocusChanged.addListener(windowId => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    // Chrome lost focus (user switched to another app)
-    const { state } = await readStorage();
-    if (state.status === 'tracking') await pauseTracking('unfocused');
-  } else {
-    // Chrome regained focus — re-evaluate
-    checkCurrentState();
+    isPdfActive = false;
+    activeTabId = null;
+    activeLegStartedAt = null;
+    publishTrackingState();
+    return;
   }
+
+  checkCurrentTab();
 });
 
-// System idle state changes (Chrome's built-in idle detection)
-chrome.idle.onStateChanged.addListener(async idleState => {
-  const { state } = await readStorage();
-
-  if ((idleState === 'idle' || idleState === 'locked') && state.status === 'tracking') {
-    await pauseTracking('idle');
+chrome.idle.onStateChanged.addListener(idleState => {
+  isUserActive = idleState === 'active';
+  if (!isUserActive) {
+    activeLegStartedAt = null;
+  } else if (isPdfActive && !activeLegStartedAt) {
+    activeLegStartedAt = Date.now();
   }
-
-  if (idleState === 'active' && state.status === 'paused' &&
-      (state.pauseReason === 'idle' || state.pauseReason === 'unfocused')) {
-    checkCurrentState(); // will resume if PDF tab is still active
-  }
+  publishTrackingState();
 });
 
-// Periodic save alarm
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === 'periodicSave') periodicSave();
+  if (alarm.name === HEARTBEAT_ALARM) {
+    handleHeartbeatAlarm();
+  }
 });
 
-// Messages from popup
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  if (request.action === 'resumeManually') {
-    resumeTracking().then(() => sendResponse({ ok: true }));
-    return true; // keep channel open for async response
-  }
-  if (request.action === 'getState') {
-    readStorage().then(data => sendResponse(data));
+  if (request.action === MESSAGE_ACTIONS.GET_TRACKING_STATE || request.action === 'getState') {
+    sendTrackingSnapshot(sendResponse);
     return true;
   }
+
+  if (request.action === MESSAGE_ACTIONS.RESUME_TRACKING || request.action === 'resumeManually') {
+    resumeTrackingManually(sendResponse);
+    return true;
+  }
+
+  return false;
 });
+
+initializeEngine();

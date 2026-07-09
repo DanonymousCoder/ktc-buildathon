@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: #f7f9fb;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-outline bg-white shadow-soft;
+  }
+
+  .icon-button {
+    @apply grid h-8 w-8 place-items-center rounded-lg transition hover:bg-primary-soft hover:text-primary;
+  }
+
+  .primary-button {
+    @apply flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-base font-semibold text-white shadow-soft transition hover:bg-[#003da3];
+  }
+
+  .secondary-button {
+    @apply flex h-12 items-center justify-center gap-2 rounded-lg border border-primary bg-white px-4 text-base font-medium text-primary transition hover:bg-primary-soft;
+  }
+
+  .ghost-button {
+    @apply flex h-12 items-center justify-center gap-2 rounded-lg bg-[#e9ecef] px-4 text-base font-medium text-variant transition hover:bg-[#dfe3e8];
+  }
+}

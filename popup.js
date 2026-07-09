@@ -1,4 +1,4 @@
-// FlowSpace PDF Tracker — Popup Controller
+// FlowTrakka PDF Tracker — Popup Controller
 // Merges: user's nav logic + screen 5 timer/badge pattern + live storage data binding
 
 // SVG snippets for badge icons (avoids emoji dependency)
@@ -36,10 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // NAVIGATION  (user's original logic)
   // ============================================================
   const titles = {
-    'view-dashboard': 'PDF Tracker',
-    'view-tracking' : 'Flow Space',
-    'view-paused'   : 'PDF Tracker',
-    'view-empty'    : 'ReadFlow',
+    'view-dashboard': 'FlowTrakka',
+    'view-tracking' : 'FlowTrakka Live',
+    'view-paused'   : 'FlowTrakka',
+    'view-empty'    : 'FlowTrakka',
   };
 
   function switchToView(viewId) {
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const target = document.getElementById(viewId);
     if (target) target.classList.remove('hidden');
 
-    if (appTitle) appTitle.textContent = titles[viewId] || 'FlowSpace';
+    if (appTitle) appTitle.textContent = titles[viewId] || 'FlowTrakka';
 
     const matchBtn = document.querySelector(`[data-target="${viewId}"]`);
     if (matchBtn) matchBtn.classList.add('active');
