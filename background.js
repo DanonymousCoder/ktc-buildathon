@@ -13,7 +13,16 @@ const IDLE_THRESHOLD_SECONDS = 60;
 const PDF_VIEWER_EXTENSION_ID = 'mhjfbmdgcfjbbpaeojofohoefgiehjai';
 const MESSAGE_ACTIONS = {
   GET_TRACKING_STATE: 'GET_TRACKING_STATE',
+  PAUSE_TRACKING: 'PAUSE_TRACKING',
   RESUME_TRACKING: 'RESUME_TRACKING',
+  SET_TRACKING_ENABLED: 'SET_TRACKING_ENABLED',
+  SET_TRACKING_PAUSED: 'SET_TRACKING_PAUSED',
+  STOP_AND_SAVE: 'STOP_AND_SAVE',
+};
+
+const DEFAULT_SETTINGS = {
+  enabled: true,
+  paused: false,
 };
 
 let isUserActive = true;
@@ -23,6 +32,7 @@ let activeDocumentUrl = null;
 let activeDocumentTitle = null;
 let activeTabId = null;
 let activeLegStartedAt = null;
+let trackingSettings = { ...DEFAULT_SETTINGS };
 
 function getTodayKey() {
   const now = new Date();
@@ -108,6 +118,16 @@ async function setDocuments(documents) {
   await setInStorage({ documents });
 }
 
+async function getTrackingSettings() {
+  const { settings } = await getFromStorage(['settings']);
+  return { ...DEFAULT_SETTINGS, ...(settings || {}) };
+}
+
+async function setTrackingSettings(settings) {
+  trackingSettings = { ...DEFAULT_SETTINGS, ...settings };
+  await setInStorage({ settings: trackingSettings });
+}
+
 function createDailyLog(date) {
   return {
     date,
@@ -131,6 +151,36 @@ function createDocument({ id, url, title }) {
 }
 
 function buildTrackingState() {
+  if (!trackingSettings.enabled) {
+    return {
+      status: 'disabled',
+      isUserActive,
+      isPdfActive: false,
+      currentTabId: null,
+      currentDocumentId: null,
+      currentPdfUrl: null,
+      currentPdfTitle: null,
+      activeLegStartedAt: null,
+      pauseReason: 'disabled',
+      settings: trackingSettings,
+    };
+  }
+
+  if (trackingSettings.paused && isPdfActive) {
+    return {
+      status: 'paused',
+      isUserActive,
+      isPdfActive,
+      currentTabId: activeTabId,
+      currentDocumentId: activeDocumentId,
+      currentPdfUrl: activeDocumentUrl,
+      currentPdfTitle: activeDocumentTitle,
+      activeLegStartedAt: null,
+      pauseReason: 'manual',
+      settings: trackingSettings,
+    };
+  }
+
   return {
     status: isPdfActive ? (isUserActive ? 'tracking' : 'paused') : 'inactive',
     isUserActive,
@@ -141,6 +191,7 @@ function buildTrackingState() {
     currentPdfTitle: activeDocumentTitle,
     activeLegStartedAt,
     pauseReason: isPdfActive && !isUserActive ? 'idle' : null,
+    settings: trackingSettings,
   };
 }
 
@@ -169,6 +220,17 @@ async function ensureDocumentForTab(tab) {
 }
 
 async function setActivePdfFromTab(tab) {
+  if (!trackingSettings.enabled) {
+    isPdfActive = false;
+    activeDocumentId = null;
+    activeDocumentUrl = null;
+    activeDocumentTitle = null;
+    activeTabId = null;
+    activeLegStartedAt = null;
+    await publishTrackingState();
+    return;
+  }
+
   if (!tab || !isPdfUrl(tab.url)) {
     isPdfActive = false;
     activeDocumentId = null;
@@ -183,8 +245,10 @@ async function setActivePdfFromTab(tab) {
   const previousDocumentId = activeDocumentId;
   isPdfActive = true;
   await ensureDocumentForTab(tab);
-  if (isUserActive && (!activeLegStartedAt || previousDocumentId !== activeDocumentId)) {
+  if (!trackingSettings.paused && isUserActive && (!activeLegStartedAt || previousDocumentId !== activeDocumentId)) {
     activeLegStartedAt = Date.now();
+  } else if (trackingSettings.paused) {
+    activeLegStartedAt = null;
   }
   await publishTrackingState();
 }
@@ -198,8 +262,8 @@ async function checkCurrentTab() {
   }
 }
 
-async function addHeartbeatMinute() {
-  if (!isUserActive || !isPdfActive || !activeDocumentId) return;
+async function addReadingSeconds(seconds) {
+  if (!seconds || seconds <= 0 || !activeDocumentId) return;
 
   const today = getTodayKey();
   const now = new Date().toISOString();
@@ -223,18 +287,18 @@ async function addHeartbeatMinute() {
 
   documents[activeDocumentId] = {
     ...currentDocument,
-    total_seconds: (currentDocument.total_seconds || 0) + HEARTBEAT_SECONDS,
+    total_seconds: (currentDocument.total_seconds || 0) + seconds,
     last_read_at: now,
   };
 
   dailyLogs[today] = {
     ...currentDailyLog,
-    total_seconds: (currentDailyLog.total_seconds || 0) + HEARTBEAT_SECONDS,
+    total_seconds: (currentDailyLog.total_seconds || 0) + seconds,
     documents: {
       ...currentDailyLog.documents,
       [activeDocumentId]: {
         ...dailyDocument,
-        seconds: (dailyDocument.seconds || 0) + HEARTBEAT_SECONDS,
+        seconds: (dailyDocument.seconds || 0) + seconds,
         last_read_at: now,
       },
     },
@@ -249,7 +313,39 @@ async function addHeartbeatMinute() {
     trackingState: buildTrackingState(),
   });
 
-  console.log(`[FlowTrakka] Added ${HEARTBEAT_SECONDS}s to ${currentDocument.title}`);
+  console.log(`[FlowTrakka] Added ${seconds}s to ${currentDocument.title}`);
+}
+
+async function addHeartbeatMinute() {
+  if (
+    !trackingSettings.enabled ||
+    trackingSettings.paused ||
+    !isUserActive ||
+    !isPdfActive ||
+    !activeDocumentId
+  ) {
+    return;
+  }
+
+  await addReadingSeconds(HEARTBEAT_SECONDS);
+}
+
+async function commitActiveLeg() {
+  if (
+    !trackingSettings.enabled ||
+    trackingSettings.paused ||
+    !isUserActive ||
+    !isPdfActive ||
+    !activeDocumentId ||
+    !activeLegStartedAt
+  ) {
+    return;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - activeLegStartedAt) / 1000));
+  if (elapsedSeconds > 0) {
+    await addReadingSeconds(elapsedSeconds);
+  }
 }
 
 function startHeartbeat() {
@@ -257,6 +353,8 @@ function startHeartbeat() {
 }
 
 async function refreshRuntimeState() {
+  trackingSettings = await getTrackingSettings();
+
   try {
     const idleState = await chrome.idle.queryState(IDLE_THRESHOLD_SECONDS);
     isUserActive = idleState === 'active';
@@ -272,6 +370,7 @@ async function refreshRuntimeState() {
 }
 
 async function initializeEngine() {
+  trackingSettings = await getTrackingSettings();
   chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
   startHeartbeat();
   await refreshRuntimeState();
@@ -283,11 +382,13 @@ async function handleHeartbeatAlarm() {
 }
 
 async function getTrackingSnapshot() {
-  const [dailyLogs, documents] = await Promise.all([getDailyLogs(), getDocuments()]);
+  const [dailyLogs, documents, settings] = await Promise.all([getDailyLogs(), getDocuments(), getTrackingSettings()]);
+  trackingSettings = settings;
   return {
     trackingState: buildTrackingState(),
     daily_logs: dailyLogs,
     documents,
+    settings,
   };
 }
 
@@ -297,6 +398,7 @@ async function sendTrackingSnapshot(sendResponse) {
 }
 
 async function resumeTrackingManually(sendResponse) {
+  await setTrackingSettings({ ...trackingSettings, enabled: true, paused: false });
   isUserActive = true;
   if (isPdfActive) {
     activeLegStartedAt = Date.now();
@@ -305,6 +407,52 @@ async function resumeTrackingManually(sendResponse) {
   await checkCurrentTab();
   await publishTrackingState();
   sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
+}
+
+async function pauseTrackingManually(sendResponse) {
+  await commitActiveLeg();
+  activeLegStartedAt = null;
+  await setTrackingSettings({ ...trackingSettings, paused: true });
+  await checkCurrentTab();
+  await publishTrackingState();
+  sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
+}
+
+async function stopAndSave(sendResponse) {
+  await commitActiveLeg();
+  activeLegStartedAt = null;
+  await setTrackingSettings({ ...trackingSettings, paused: true });
+  await publishTrackingState();
+  sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
+}
+
+async function setTrackingEnabled(enabled, sendResponse) {
+  await commitActiveLeg();
+  await setTrackingSettings({
+    ...trackingSettings,
+    enabled: Boolean(enabled),
+    paused: Boolean(enabled) ? trackingSettings.paused : false,
+  });
+  if (!enabled) {
+    isPdfActive = false;
+    activeDocumentId = null;
+    activeDocumentUrl = null;
+    activeDocumentTitle = null;
+    activeTabId = null;
+    activeLegStartedAt = null;
+  }
+  await checkCurrentTab();
+  await publishTrackingState();
+  sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
+}
+
+async function setTrackingPaused(paused, sendResponse) {
+  if (paused) {
+    await pauseTrackingManually(sendResponse);
+    return;
+  }
+
+  await resumeTrackingManually(sendResponse);
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -348,7 +496,7 @@ chrome.idle.onStateChanged.addListener(idleState => {
   isUserActive = idleState === 'active';
   if (!isUserActive) {
     activeLegStartedAt = null;
-  } else if (isPdfActive && !activeLegStartedAt) {
+  } else if (trackingSettings.enabled && !trackingSettings.paused && isPdfActive && !activeLegStartedAt) {
     activeLegStartedAt = Date.now();
   }
   publishTrackingState();
@@ -366,8 +514,28 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === MESSAGE_ACTIONS.PAUSE_TRACKING || request.action === 'pauseTracking') {
+    pauseTrackingManually(sendResponse);
+    return true;
+  }
+
   if (request.action === MESSAGE_ACTIONS.RESUME_TRACKING || request.action === 'resumeManually') {
     resumeTrackingManually(sendResponse);
+    return true;
+  }
+
+  if (request.action === MESSAGE_ACTIONS.STOP_AND_SAVE || request.action === 'stopAndSave') {
+    stopAndSave(sendResponse);
+    return true;
+  }
+
+  if (request.action === MESSAGE_ACTIONS.SET_TRACKING_ENABLED || request.action === 'setTrackingEnabled') {
+    setTrackingEnabled(request.enabled, sendResponse);
+    return true;
+  }
+
+  if (request.action === MESSAGE_ACTIONS.SET_TRACKING_PAUSED || request.action === 'setTrackingPaused') {
+    setTrackingPaused(request.paused, sendResponse);
     return true;
   }
 

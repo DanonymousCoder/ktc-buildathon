@@ -16,7 +16,16 @@ const EMPTY_DAILY = {
 
 const MESSAGE_ACTIONS = {
   GET_TRACKING_STATE: 'GET_TRACKING_STATE',
+  PAUSE_TRACKING: 'PAUSE_TRACKING',
   RESUME_TRACKING: 'RESUME_TRACKING',
+  SET_TRACKING_ENABLED: 'SET_TRACKING_ENABLED',
+  SET_TRACKING_PAUSED: 'SET_TRACKING_PAUSED',
+  STOP_AND_SAVE: 'STOP_AND_SAVE',
+};
+
+const DEFAULT_SETTINGS = {
+  enabled: true,
+  paused: false,
 };
 
 function getTodayKey() {
@@ -90,6 +99,7 @@ function normalizeTrackingSnapshot(snapshot = {}) {
       longestSessionSeconds: Math.max(0, ...sessions.map(session => session.seconds || 0)),
       estimatedPagesRead: Math.max(documentEntries.length * 12, Math.floor(totalSeconds / 90)),
     },
+    settings: { ...DEFAULT_SETTINGS, ...(snapshot.settings || state.settings || {}) },
     sessions,
     streak: { lastActiveDate: todayLog?.date || null },
     isExtension: typeof chrome !== 'undefined' && Boolean(chrome.storage),
@@ -135,6 +145,7 @@ function useTrackingData() {
   const [data, setData] = useState({
     state: EMPTY_STATE,
     daily: EMPTY_DAILY,
+    settings: DEFAULT_SETTINGS,
     sessions: [],
     streak: {},
     isExtension: typeof chrome !== 'undefined' && Boolean(chrome.storage),
@@ -161,6 +172,38 @@ function useTrackingData() {
   }, []);
 
   return { ...data, refresh: () => requestTrackingSnapshot().then(snapshot => setData(normalizeTrackingSnapshot(snapshot))) };
+}
+
+function sendRuntimeAction(action, payload = {}) {
+  return new Promise(resolve => {
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      resolve({ ok: false });
+      return;
+    }
+
+    chrome.runtime.sendMessage({ action, ...payload }, response => {
+      if (chrome.runtime.lastError || !response) {
+        resolve({ ok: false });
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+function exportTrackingData() {
+  if (typeof chrome === 'undefined' || !chrome.storage) return;
+
+  chrome.storage.local.get(null, data => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `flowtrakka-export-${getTodayKey()}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  });
 }
 
 function useExactLiveSeconds(state, fallbackSeconds) {
@@ -420,7 +463,7 @@ function SummaryCard({ daily }) {
   );
 }
 
-function RecentActivity({ sessions, compact = false }) {
+function RecentActivity({ sessions, compact = false, onViewAll }) {
   const fallback = [
     { id: 'sample-1', pdfTitle: 'Neural_Networks_Intro.pdf', seconds: 4800, lastReadAt: null, progress: 84 },
     { id: 'sample-2', pdfTitle: 'Deep_Learning_Vol3.pdf', seconds: 2700, lastReadAt: null, progress: 32 },
@@ -431,7 +474,7 @@ function RecentActivity({ sessions, compact = false }) {
     <section className={compact ? 'card p-5' : ''}>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-ink">Recent Activity</h2>
-        <button className="text-xs font-semibold uppercase tracking-wide text-primary">View All</button>
+        <button className="text-xs font-semibold uppercase tracking-wide text-primary" onClick={onViewAll}>View All</button>
       </div>
       <div className="space-y-3">
         {items.slice(0, compact ? 2 : 3).map((session, index) => {
@@ -516,10 +559,11 @@ function TrackerEmptyView() {
   );
 }
 
-function TrackerActiveView({ state, daily, sessions }) {
+function TrackerActiveView({ state, daily, sessions, onPause, onResume, onStopAndSave, onViewLogs }) {
   const liveSeconds = useExactLiveSeconds(state, daily.totalSeconds || 0);
   const currentTitle = state.currentPdfTitle || sessions[0]?.pdfTitle || 'Current PDF document';
   const trackingRunning = Boolean((state.isPdfActive || state.status === 'tracking') && state.isUserActive !== false);
+  const buttonAction = trackingRunning ? onPause : onResume;
 
   return (
     <div className="px-5 py-5">
@@ -543,17 +587,17 @@ function TrackerActiveView({ state, daily, sessions }) {
         </article>
       </section>
 
-      <button className="primary-button mt-6">
+      <button className="primary-button mt-6" onClick={buttonAction}>
         <PauseIcon className="h-5 w-5" />
         {trackingRunning ? 'Pause Session' : 'Resume Session'}
       </button>
-      <button className="mx-auto mt-5 flex items-center justify-center gap-2 text-sm font-semibold text-danger">
+      <button className="mx-auto mt-5 flex items-center justify-center gap-2 text-sm font-semibold text-danger" onClick={onStopAndSave}>
         <StopIcon className="h-4 w-4" />
         Stop & Save
       </button>
 
       <div className="mt-9">
-        <RecentActivity sessions={sessions} compact />
+        <RecentActivity sessions={sessions} compact onViewAll={onViewLogs} />
       </div>
 
       <div className="mt-5 flex items-center gap-3 rounded-lg border border-[#c9d8ee] bg-[#edf5ff] p-4 text-left text-sm text-variant">
@@ -564,7 +608,7 @@ function TrackerActiveView({ state, daily, sessions }) {
   );
 }
 
-function TrackerSummaryView({ daily, sessions }) {
+function TrackerSummaryView({ daily, sessions, onStopAndSave, onViewLogs }) {
   return (
     <div className="px-5 py-5">
       <section className="text-center">
@@ -586,7 +630,7 @@ function TrackerSummaryView({ daily, sessions }) {
           <p className="text-sm text-variant">Focus maintained</p>
         </article>
       </section>
-      <button className="primary-button mt-6">
+      <button className="primary-button mt-6" onClick={onStopAndSave}>
         <PauseIcon className="h-5 w-5" />
         Stop Tracking
       </button>
@@ -595,18 +639,18 @@ function TrackerSummaryView({ daily, sessions }) {
         <SummaryCard daily={daily} />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <button className="secondary-button">
+        <button className="secondary-button" onClick={onViewLogs}>
           <ChartIcon className="h-4 w-4" />
           View Logs
         </button>
-        <button className="ghost-button">
+        <button className="ghost-button" onClick={exportTrackingData}>
           <ShareIcon className="h-4 w-4" />
           Export
         </button>
       </div>
       {sessions.length > 0 && (
         <div className="mt-6">
-          <RecentActivity sessions={sessions} compact />
+          <RecentActivity sessions={sessions} compact onViewAll={onViewLogs} />
         </div>
       )}
     </div>
@@ -615,11 +659,7 @@ function TrackerSummaryView({ daily, sessions }) {
 
 function PausedView({ state, currentSessionSeconds, onResume }) {
   function resume() {
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.sendMessage({ action: MESSAGE_ACTIONS.RESUME_TRACKING }, () => {
-        onResume?.();
-      });
-    }
+    onResume?.();
   }
 
   return (
@@ -638,14 +678,14 @@ function PausedView({ state, currentSessionSeconds, onResume }) {
   );
 }
 
-function LibraryView({ sessions }) {
+function LibraryView({ sessions, onViewAll }) {
   return (
     <div className="px-5 py-6">
       <h2 className="text-xl font-semibold text-ink">Library</h2>
       <p className="mt-2 text-sm text-variant">Recent PDFs tracked locally on this device.</p>
       <div className="mt-5">
         {sessions.length ? (
-          <RecentActivity sessions={sessions} />
+          <RecentActivity sessions={sessions} onViewAll={onViewAll} />
         ) : (
           <TrackerEmptyView />
         )}
@@ -654,7 +694,7 @@ function LibraryView({ sessions }) {
   );
 }
 
-function InsightsView({ daily, sessions }) {
+function InsightsView({ daily, sessions, onViewAll }) {
   const weeklyAverageSeconds = daily.totalSeconds || daily.longestSessionSeconds || 0;
   const totalFocusSeconds = sessions.reduce((sum, session) => sum + (session.seconds || 0), 0) || daily.totalSeconds || 0;
 
@@ -676,7 +716,7 @@ function InsightsView({ daily, sessions }) {
         <MetricTile horizontal icon={<StopwatchIcon className="h-8 w-8" />} value={formatTime(totalFocusSeconds)} label="Total Focus Time" />
       </div>
       <div className="mt-9">
-        <RecentActivity sessions={sessions} />
+        <RecentActivity sessions={sessions} onViewAll={onViewAll} />
       </div>
       <footer className="mt-10 text-center text-sm text-variant">
         <p className="inline-flex items-center justify-center gap-2">
@@ -697,18 +737,31 @@ function Toggle({ enabled }) {
   );
 }
 
-function SettingsView() {
-  function exportData() {
-    if (typeof chrome === 'undefined' || !chrome.storage) return;
-    chrome.storage.local.get(null, data => {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `flowtrakka-export-${getTodayKey()}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    });
+function ToggleButton({ enabled, label, onClick }) {
+  return (
+    <button type="button" aria-label={label} aria-pressed={enabled} onClick={onClick}>
+      <Toggle enabled={enabled} />
+    </button>
+  );
+}
+
+function SettingsView({ settings, onSetEnabled, onSetPaused }) {
+  const [saveLabel, setSaveLabel] = useState('Save Settings');
+
+  function markSaved() {
+    setSaveLabel('Settings Saved');
+    window.setTimeout(() => setSaveLabel('Save Settings'), 1400);
+  }
+
+  async function toggleEnabled() {
+    await onSetEnabled(!settings.enabled);
+    markSaved();
+  }
+
+  async function togglePaused() {
+    if (!settings.enabled) return;
+    await onSetPaused(!settings.paused);
+    markSaved();
   }
 
   return (
@@ -721,7 +774,7 @@ function SettingsView() {
               <h3 className="text-base font-medium text-ink">Enable Tracking</h3>
               <p className="text-sm text-variant">Log document interactions and reading time.</p>
             </div>
-            <Toggle enabled />
+            <ToggleButton enabled={settings.enabled} label="Enable Tracking" onClick={toggleEnabled} />
           </div>
           <div className="my-5 h-px bg-outline" />
           <div className="flex items-center justify-between gap-4">
@@ -729,7 +782,7 @@ function SettingsView() {
               <h3 className="text-base font-medium text-ink">Pause Tracking</h3>
               <p className="text-sm text-variant">Temporarily suspend all logging activities.</p>
             </div>
-            <Toggle enabled={false} />
+            <ToggleButton enabled={settings.enabled && settings.paused} label="Pause Tracking" onClick={togglePaused} />
           </div>
         </div>
       </section>
@@ -745,14 +798,14 @@ function SettingsView() {
               <p className="text-sm leading-5 text-variant">Your data never leaves this browser. All processing is local.</p>
             </div>
           </div>
-          <button className="secondary-button mt-6 w-full" onClick={exportData}>
+          <button className="secondary-button mt-6 w-full" onClick={exportTrackingData}>
             <DownloadIcon className="h-4 w-4" />
             Export Data
           </button>
         </div>
       </section>
       <p className="mt-8 text-center text-sm text-variant">FlowTrakka v2.4.0 - Google Workspace Integrated</p>
-      <button className="primary-button mt-8">Save Settings</button>
+      <button className="primary-button mt-8" onClick={markSaved}>{saveLabel}</button>
     </div>
   );
 }
@@ -794,7 +847,7 @@ function ExtensionApiNotice({ isExtension }) {
 }
 
 function App() {
-  const { state, daily, sessions, isExtension, refresh } = useTrackingData();
+  const { state, daily, settings, sessions, isExtension, refresh } = useTrackingData();
   const [manualView, setManualView] = useState(null);
 
   const stateView = useMemo(() => {
@@ -806,16 +859,66 @@ function App() {
   const isTracking = state.status === 'tracking';
   const currentSessionSeconds = sessions.find(session => session.id === state.currentDocumentId)?.seconds || daily.totalSeconds || 0;
 
+  async function runAction(action, payload = {}) {
+    const response = await sendRuntimeAction(action, payload);
+    if (response?.ok) {
+      await refresh();
+    }
+    return response;
+  }
+
+  async function pauseTracking() {
+    await runAction(MESSAGE_ACTIONS.PAUSE_TRACKING);
+    setManualView('paused');
+  }
+
+  async function resumeTracking() {
+    await runAction(MESSAGE_ACTIONS.RESUME_TRACKING);
+    setManualView('tracker');
+  }
+
+  async function stopAndSave() {
+    await runAction(MESSAGE_ACTIONS.STOP_AND_SAVE);
+    setManualView('library');
+  }
+
+  async function setTrackingEnabled(enabled) {
+    await runAction(MESSAGE_ACTIONS.SET_TRACKING_ENABLED, { enabled });
+    setManualView(enabled ? 'tracker' : 'settings');
+  }
+
+  async function setTrackingPaused(paused) {
+    await runAction(MESSAGE_ACTIONS.SET_TRACKING_PAUSED, { paused });
+    setManualView(paused ? 'paused' : 'tracker');
+  }
+
+  function viewLogs() {
+    setManualView('library');
+  }
+
   return (
     <div className="min-h-[600px] w-[390px] overflow-hidden bg-surface text-ink">
       <Header currentView={currentView} setCurrentView={setManualView} />
       <ExtensionApiNotice isExtension={isExtension} />
       <main className="min-h-[492px] overflow-y-auto">
-        {currentView === 'tracker' && (isTracking ? <TrackerActiveView state={state} daily={daily} sessions={sessions} /> : <TrackerEmptyView />)}
-        {currentView === 'paused' && <PausedView state={state} currentSessionSeconds={currentSessionSeconds} onResume={refresh} />}
-        {currentView === 'library' && <LibraryView sessions={sessions} />}
-        {currentView === 'insights' && <InsightsView daily={daily} sessions={sessions} />}
-        {currentView === 'settings' && <SettingsView />}
+        {currentView === 'tracker' &&
+          (isTracking ? (
+            <TrackerActiveView
+              state={state}
+              daily={daily}
+              sessions={sessions}
+              onPause={pauseTracking}
+              onResume={resumeTracking}
+              onStopAndSave={stopAndSave}
+              onViewLogs={viewLogs}
+            />
+          ) : (
+            <TrackerEmptyView />
+          ))}
+        {currentView === 'paused' && <PausedView state={state} currentSessionSeconds={currentSessionSeconds} onResume={resumeTracking} />}
+        {currentView === 'library' && <LibraryView sessions={sessions} onViewAll={viewLogs} />}
+        {currentView === 'insights' && <InsightsView daily={daily} sessions={sessions} onViewAll={viewLogs} />}
+        {currentView === 'settings' && <SettingsView settings={settings || DEFAULT_SETTINGS} onSetEnabled={setTrackingEnabled} onSetPaused={setTrackingPaused} />}
       </main>
       <BottomNav currentView={currentView} setCurrentView={setManualView} />
     </div>
