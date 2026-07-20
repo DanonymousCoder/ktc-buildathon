@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FlowTrakka - PDF Reading Tracker",
+  "name": "FlowTrakka - Document Focus Tracker",
   "version": "1.0.0",
-  "description": "FlowTrakka automatically tracks your active PDF reading time across Chrome.",
+  "description": "FlowTrakka automatically tracks focused time across PDFs, slides, docs, and sheets in Chrome.",
   "permissions": [
     "storage",
     "tabs",

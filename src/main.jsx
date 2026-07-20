@@ -5,19 +5,22 @@ import './styles.css';
 const EMPTY_STATE = {
   status: 'inactive',
   isUserActive: false,
-  isPdfActive: false,
+  isDocumentActive: false,
 };
 
 const EMPTY_DAILY = {
   totalSeconds: 0,
-  pdfsOpened: 0,
+  documentsOpened: 0,
   longestSessionSeconds: 0,
 };
 
 const MESSAGE_ACTIONS = {
+  GET_LEADERBOARD: 'GET_LEADERBOARD',
   GET_TRACKING_STATE: 'GET_TRACKING_STATE',
+  GET_LEADERBOARD_PAYLOAD: 'GET_LEADERBOARD_PAYLOAD',
   PAUSE_TRACKING: 'PAUSE_TRACKING',
   RESUME_TRACKING: 'RESUME_TRACKING',
+  SET_LEADERBOARD_OPT_IN: 'SET_LEADERBOARD_OPT_IN',
   SET_TRACKING_ENABLED: 'SET_TRACKING_ENABLED',
   SET_TRACKING_PAUSED: 'SET_TRACKING_PAUSED',
   STOP_AND_SAVE: 'STOP_AND_SAVE',
@@ -25,6 +28,13 @@ const MESSAGE_ACTIONS = {
 
 const DEFAULT_SETTINGS = {
   enabled: true,
+  leaderboard: {
+    enabled: false,
+    displayName: 'Anonymous Reader',
+    userId: null,
+    consentedAt: null,
+    revokedAt: null,
+  },
   paused: false,
 };
 
@@ -69,6 +79,17 @@ function getElapsedLegSeconds(state) {
   return Math.max(0, Math.floor((Date.now() - state.activeLegStartedAt) / 1000));
 }
 
+function normalizeSettings(settings = {}) {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...settings,
+    leaderboard: {
+      ...DEFAULT_SETTINGS.leaderboard,
+      ...(settings.leaderboard || {}),
+    },
+  };
+}
+
 function normalizeTrackingSnapshot(snapshot = {}) {
   const todayLog = snapshot.daily_logs?.[getTodayKey()];
   const documentEntries = Object.values(todayLog?.documents || {});
@@ -81,8 +102,11 @@ function normalizeTrackingSnapshot(snapshot = {}) {
       const isCurrentDocument = entry.document_id === state.currentDocumentId;
       return {
         id: entry.document_id,
-        category: document.category || 'PDF',
-        pdfTitle: entry.title || document.title || 'Unknown PDF',
+        category: document.category || 'DOCUMENT',
+        documentTitle: entry.title || document.title || 'Unknown Document',
+        documentType: entry.type || document.type || 'document',
+        documentTypeLabel: entry.type_label || document.type_label || 'Document',
+        pdfTitle: entry.title || document.title || 'Unknown Document',
         seconds: (entry.seconds || 0) + (isCurrentDocument ? elapsedLegSeconds : 0),
         lastReadAt: entry.last_read_at || document.last_read_at || null,
       };
@@ -95,11 +119,12 @@ function normalizeTrackingSnapshot(snapshot = {}) {
     state,
     daily: {
       totalSeconds,
+      documentsOpened: documentEntries.length,
       pdfsOpened: documentEntries.length,
       longestSessionSeconds: Math.max(0, ...sessions.map(session => session.seconds || 0)),
       estimatedPagesRead: Math.max(documentEntries.length * 12, Math.floor(totalSeconds / 90)),
     },
-    settings: { ...DEFAULT_SETTINGS, ...(snapshot.settings || state.settings || {}) },
+    settings: normalizeSettings(snapshot.settings || state.settings),
     sessions,
     streak: { lastActiveDate: todayLog?.date || null },
     isExtension: typeof chrome !== 'undefined' && Boolean(chrome.storage),
@@ -113,11 +138,12 @@ function readTrackingSnapshotFromStorage() {
       return;
     }
 
-    chrome.storage.local.get(['trackingState', 'daily_logs', 'documents'], result => {
+    chrome.storage.local.get(['trackingState', 'daily_logs', 'documents', 'settings'], result => {
       resolve({
         trackingState: result.trackingState,
         daily_logs: result.daily_logs,
         documents: result.documents,
+        settings: result.settings,
       });
     });
   });
@@ -145,7 +171,7 @@ function useTrackingData() {
   const [data, setData] = useState({
     state: EMPTY_STATE,
     daily: EMPTY_DAILY,
-    settings: DEFAULT_SETTINGS,
+    settings: normalizeSettings(),
     sessions: [],
     streak: {},
     isExtension: typeof chrome !== 'undefined' && Boolean(chrome.storage),
@@ -161,7 +187,7 @@ function useTrackingData() {
     }
 
     function handleStorageChange(changes, area) {
-      if (area === 'local' && (changes.trackingState || changes.daily_logs || changes.documents)) {
+      if (area === 'local' && (changes.trackingState || changes.daily_logs || changes.documents || changes.settings)) {
         load();
       }
     }
@@ -204,6 +230,26 @@ function exportTrackingData() {
     anchor.click();
     URL.revokeObjectURL(url);
   });
+}
+
+async function downloadLeaderboardPayload() {
+  const response = await sendRuntimeAction(MESSAGE_ACTIONS.GET_LEADERBOARD_PAYLOAD);
+  if (!response?.ok || !response.payload) {
+    return { ok: false, error: response?.error || 'leaderboard_payload_unavailable' };
+  }
+
+  const blob = new Blob([JSON.stringify(response.payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `flowtrakka-leaderboard-${getTodayKey()}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
+}
+
+function requestLeaderboard() {
+  return sendRuntimeAction(MESSAGE_ACTIONS.GET_LEADERBOARD);
 }
 
 function useExactLiveSeconds(state, fallbackSeconds) {
@@ -314,6 +360,36 @@ function FileIcon({ className }) {
   );
 }
 
+function SlidesIcon({ className }) {
+  return (
+    <Icon className={className}>
+      <rect x="3" y="5" width="18" height="12" rx="2" />
+      <path d="M8 21h8" />
+      <path d="M12 17v4" />
+      <path d="M8 10h8" />
+      <path d="M8 13h5" />
+    </Icon>
+  );
+}
+
+function SheetIcon({ className }) {
+  return (
+    <Icon className={className}>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M4 9h16" />
+      <path d="M4 15h16" />
+      <path d="M10 3v18" />
+    </Icon>
+  );
+}
+
+function getDocumentIcon(type, className = 'h-6 w-6') {
+  if (type === 'slides') return <SlidesIcon className={className} />;
+  if (type === 'sheet') return <SheetIcon className={className} />;
+  if (type === 'doc') return <BookIcon className={className} />;
+  return <FileIcon className={className} />;
+}
+
 function UserCheckIcon({ className }) {
   return (
     <Icon className={className}>
@@ -392,6 +468,18 @@ function TrendIcon({ className }) {
   );
 }
 
+function TrophyIcon({ className }) {
+  return (
+    <Icon className={className}>
+      <path d="M8 21h8" />
+      <path d="M12 17v4" />
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" />
+      <path d="M5 6H3v1a4 4 0 0 0 4 4" />
+      <path d="M19 6h2v1a4 4 0 0 1-4 4" />
+    </Icon>
+  );
+}
+
 function Header({ currentView, setCurrentView }) {
   const isSettings = currentView === 'settings';
 
@@ -443,12 +531,12 @@ function SummaryCard({ daily }) {
     <section className="card p-5">
       <div className="grid grid-cols-2 items-center gap-4">
         <div>
-          <div className="text-4xl font-normal text-ink">{daily.pdfsOpened || 0}</div>
-          <div className="mt-1 text-sm font-medium text-variant">PDFs Opened</div>
+          <div className="text-4xl font-normal text-ink">{daily.documentsOpened || daily.pdfsOpened || 0}</div>
+          <div className="mt-1 text-sm font-medium text-variant">Docs Opened</div>
         </div>
         <div className="border-l border-outline pl-6">
           <div className="text-4xl font-normal text-ink">{daily.estimatedPagesRead || 0}</div>
-          <div className="mt-1 text-sm font-medium text-variant">Pages Read</div>
+          <div className="mt-1 text-sm font-medium text-variant">Focus Units</div>
         </div>
       </div>
       <div className="my-5 h-px bg-outline/70" />
@@ -465,8 +553,8 @@ function SummaryCard({ daily }) {
 
 function RecentActivity({ sessions, compact = false, onViewAll }) {
   const fallback = [
-    { id: 'sample-1', pdfTitle: 'Neural_Networks_Intro.pdf', seconds: 4800, lastReadAt: null, progress: 84 },
-    { id: 'sample-2', pdfTitle: 'Deep_Learning_Vol3.pdf', seconds: 2700, lastReadAt: null, progress: 32 },
+    { id: 'sample-1', documentTitle: 'Lecture_Deck_Week_4.pptx', documentType: 'slides', documentTypeLabel: 'Slides', seconds: 4800, lastReadAt: null, progress: 84 },
+    { id: 'sample-2', documentTitle: 'Research_Notes.docx', documentType: 'doc', documentTypeLabel: 'Document', seconds: 2700, lastReadAt: null, progress: 32 },
   ];
   const items = sessions.length ? sessions : fallback;
 
@@ -482,7 +570,7 @@ function RecentActivity({ sessions, compact = false, onViewAll }) {
           return compact ? (
             <div key={session.id} className="space-y-1.5">
               <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0 truncate text-sm font-medium text-ink">{session.pdfTitle}</p>
+                <p className="min-w-0 truncate text-sm font-medium text-ink">{session.documentTitle || session.pdfTitle}</p>
                 <span className="rounded-lg bg-[#eef2f7] px-2 py-0.5 text-xs font-semibold text-variant">{progress}%</span>
               </div>
               <p className="text-xs text-variant">Last read: {index === 0 ? '14 mins ago' : formatRelativeTime(session.lastReadAt)}</p>
@@ -493,11 +581,11 @@ function RecentActivity({ sessions, compact = false, onViewAll }) {
           ) : (
             <article key={session.id} className="card flex items-center gap-4 p-4">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
-                <FileIcon className="h-6 w-6" />
+                {getDocumentIcon(session.documentType, 'h-6 w-6')}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-base font-semibold text-ink">{session.pdfTitle}</h3>
-                <p className="text-sm text-variant">Read {Math.max(1, Math.round((session.seconds || 0) / 90))} pages - {formatTime(session.seconds || 0)}</p>
+                <h3 className="truncate text-base font-semibold text-ink">{session.documentTitle || session.pdfTitle}</h3>
+                <p className="text-sm text-variant">{session.documentTypeLabel || 'Document'} - {formatTime(session.seconds || 0)}</p>
               </div>
               <span className="shrink-0 rounded-full bg-[#f0f1f3] px-3 py-1 text-sm text-variant">{formatRelativeTime(session.lastReadAt)}</span>
             </article>
@@ -512,7 +600,7 @@ function EmptyIllustration() {
   return (
     <div className="relative mx-auto grid h-28 w-28 place-items-center rounded-full bg-[#eef3fb] text-primary">
       <div className="relative grid h-14 w-14 place-items-center rounded-md border-4 border-primary bg-[#d9e7ff]">
-        <span className="text-sm font-semibold">PDF</span>
+        <span className="text-sm font-semibold">DOC</span>
       </div>
       <div className="absolute bottom-5 right-5 grid h-10 w-10 place-items-center rounded-full border border-outline bg-white text-variant">
         <StopwatchIcon className="h-6 w-6" />
@@ -534,8 +622,8 @@ function TrackerEmptyView() {
   return (
     <div className="flex flex-col items-center px-5 pt-8 text-center">
       <EmptyIllustration />
-      <h2 className="mt-7 text-xl font-medium text-primary">Open a PDF</h2>
-      <p className="mt-3 max-w-[260px] text-sm leading-5 text-variant">Tracking begins automatically when a PDF is active in your browser.</p>
+      <h2 className="mt-7 text-xl font-medium text-primary">Open a document</h2>
+      <p className="mt-3 max-w-[260px] text-sm leading-5 text-variant">Tracking begins automatically when a supported document is active in your browser.</p>
       <div className="mt-7 flex items-center gap-3">
         <StatusChip>Waiting</StatusChip>
         <button onClick={openFileAccessSettings}>
@@ -552,7 +640,7 @@ function TrackerEmptyView() {
         </div>
         <div>
           <h3 className="text-base font-medium text-ink">No active session</h3>
-          <p className="text-sm text-variant">Navigate to a PDF document to start log.</p>
+          <p className="text-sm text-variant">Navigate to a PDF, slide deck, doc, or sheet to start logging.</p>
         </div>
       </article>
     </div>
@@ -561,8 +649,9 @@ function TrackerEmptyView() {
 
 function TrackerActiveView({ state, daily, sessions, onPause, onResume, onStopAndSave, onViewLogs }) {
   const liveSeconds = useExactLiveSeconds(state, daily.totalSeconds || 0);
-  const currentTitle = state.currentPdfTitle || sessions[0]?.pdfTitle || 'Current PDF document';
-  const trackingRunning = Boolean((state.isPdfActive || state.status === 'tracking') && state.isUserActive !== false);
+  const currentTypeLabel = state.currentDocumentTypeLabel || 'Document';
+  const currentTitle = state.currentDocumentTitle || state.currentPdfTitle || sessions[0]?.documentTitle || sessions[0]?.pdfTitle || 'Current document';
+  const trackingRunning = Boolean((state.isDocumentActive || state.isPdfActive || state.status === 'tracking') && state.isUserActive !== false);
   const buttonAction = trackingRunning ? onPause : onResume;
 
   return (
@@ -576,8 +665,8 @@ function TrackerActiveView({ state, daily, sessions, onPause, onResume, onStopAn
 
       <section className="mt-8 grid grid-cols-2 gap-4">
         <article className="card p-5">
-          <FileIcon className="h-7 w-7 text-success" />
-          <h3 className="mt-4 text-base font-medium text-ink">PDF Active</h3>
+          {getDocumentIcon(state.currentDocumentType, 'h-7 w-7 text-success')}
+          <h3 className="mt-4 text-base font-medium text-ink">{currentTypeLabel} Active</h3>
           <p className="text-sm text-variant">Document detected</p>
         </article>
         <article className="card p-5">
@@ -621,7 +710,7 @@ function TrackerSummaryView({ daily, sessions, onStopAndSave, onViewLogs }) {
       <section className="mt-8 grid grid-cols-2 gap-4">
         <article className="card p-5">
           <FileIcon className="h-7 w-7 text-success" />
-          <h3 className="mt-4 text-base font-medium text-ink">PDF Active</h3>
+          <h3 className="mt-4 text-base font-medium text-ink">Document Active</h3>
           <p className="text-sm text-variant">Document detected</p>
         </article>
         <article className="card p-5">
@@ -666,7 +755,7 @@ function PausedView({ state, currentSessionSeconds, onResume }) {
     <div className="px-5 py-8">
       <section className="card p-6 text-center">
         <StatusChip>Tracking Paused</StatusChip>
-        <h2 className="mt-5 text-xl font-semibold text-ink">{state.currentPdfTitle || 'Current document'}</h2>
+        <h2 className="mt-5 text-xl font-semibold text-ink">{state.currentDocumentTitle || state.currentPdfTitle || 'Current document'}</h2>
         <p className="mt-2 text-sm text-variant">Session time</p>
         <div className="mt-3 text-5xl font-semibold text-primary">{formatClock(currentSessionSeconds || 0)}</div>
         <button className="primary-button mt-8" onClick={resume}>
@@ -682,7 +771,7 @@ function LibraryView({ sessions, onViewAll }) {
   return (
     <div className="px-5 py-6">
       <h2 className="text-xl font-semibold text-ink">Library</h2>
-      <p className="mt-2 text-sm text-variant">Recent PDFs tracked locally on this device.</p>
+      <p className="mt-2 text-sm text-variant">Recent documents tracked locally on this device.</p>
       <div className="mt-5">
         {sessions.length ? (
           <RecentActivity sessions={sessions} onViewAll={onViewAll} />
@@ -709,8 +798,8 @@ function InsightsView({ daily, sessions, onViewAll }) {
         </p>
       </section>
       <section className="mt-10 grid grid-cols-2 gap-4">
-        <MetricTile icon={<FileIcon className="h-8 w-8" />} value={daily.pdfsOpened || 0} label="PDFs Opened" />
-        <MetricTile icon={<BookIcon className="h-8 w-8" />} value={(daily.estimatedPagesRead || 0).toLocaleString()} label="Pages Read" />
+        <MetricTile icon={<FileIcon className="h-8 w-8" />} value={daily.documentsOpened || daily.pdfsOpened || 0} label="Docs Opened" />
+        <MetricTile icon={<BookIcon className="h-8 w-8" />} value={(daily.estimatedPagesRead || 0).toLocaleString()} label="Focus Units" />
       </section>
       <div className="mt-4">
         <MetricTile horizontal icon={<StopwatchIcon className="h-8 w-8" />} value={formatTime(totalFocusSeconds)} label="Total Focus Time" />
@@ -725,6 +814,106 @@ function InsightsView({ daily, sessions, onViewAll }) {
         </p>
         <p className="mt-3 text-xs uppercase tracking-[0.18em]">Privacy First Tracking</p>
       </footer>
+    </div>
+  );
+}
+
+function LeaderboardView({ settings, onOpenSettings }) {
+  const [leaderboard, setLeaderboard] = useState({
+    leaderboardEnabled: settings.leaderboard.enabled,
+    ownEntry: null,
+    entries: [],
+  });
+  const [status, setStatus] = useState('');
+
+  async function loadLeaderboard() {
+    const response = await requestLeaderboard();
+    if (response?.ok) {
+      setLeaderboard(response);
+      setStatus(response.leaderboardEnabled ? 'Leaderboard updated.' : 'Opt in to publish your score.');
+      return;
+    }
+    setStatus('Leaderboard unavailable.');
+  }
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, [settings.leaderboard.enabled, settings.leaderboard.displayName]);
+
+  const entries = leaderboard.entries || [];
+  const ownRank = entries.findIndex(entry => entry.userId === leaderboard.ownEntry?.userId) + 1;
+
+  return (
+    <div className="px-5 py-6">
+      <section className="text-center">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-xl bg-primary-soft text-primary">
+          <TrophyIcon className="h-8 w-8" />
+        </div>
+        <h2 className="mt-4 text-2xl font-semibold text-ink">Leaderboard</h2>
+        <p className="mt-2 text-sm leading-5 text-variant">Compete with aggregate focus stats. Private document details stay local.</p>
+      </section>
+
+      {leaderboard.leaderboardEnabled && leaderboard.ownEntry ? (
+        <section className="card mt-6 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-variant">Your rank</p>
+              <h3 className="mt-1 text-3xl font-semibold text-primary">#{ownRank || 1}</h3>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-ink">{leaderboard.ownEntry.displayName}</p>
+              <p className="text-sm text-variant">{formatTime(leaderboard.ownEntry.todaySeconds || 0)} today</p>
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-lg font-semibold text-ink">{formatTime(leaderboard.ownEntry.allTimeSeconds || 0)}</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-variant">All Time</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-ink">{leaderboard.ownEntry.documentsTracked || 0}</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-variant">Docs</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-ink">{leaderboard.ownEntry.currentStreakDays || 0}</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-variant">Streak</p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="card mt-6 p-5 text-center">
+          <h3 className="text-lg font-semibold text-ink">Join the leaderboard</h3>
+          <p className="mt-2 text-sm leading-5 text-variant">Opt in from Settings to make your aggregate score available for competitions and rewards.</p>
+          <button className="primary-button mt-5" onClick={onOpenSettings}>Open Settings</button>
+        </section>
+      )}
+
+      <section className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-ink">Rankings</h3>
+          <button className="text-xs font-semibold uppercase tracking-wide text-primary" onClick={loadLeaderboard}>Refresh</button>
+        </div>
+        <div className="space-y-3">
+          {entries.length ? (
+            entries.map((entry, index) => (
+              <article key={entry.userId || index} className="card flex items-center gap-4 p-4">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-soft text-sm font-semibold text-primary">
+                  #{index + 1}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate text-sm font-semibold text-ink">{entry.displayName || 'Anonymous Reader'}</h4>
+                  <p className="text-xs text-variant">{formatTime(entry.todaySeconds || 0)} today - {entry.currentStreakDays || 0} day streak</p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-primary">{formatTime(entry.allTimeSeconds || 0)}</p>
+              </article>
+            ))
+          ) : (
+            <article className="card p-5 text-center text-sm text-variant">No leaderboard entries yet.</article>
+          )}
+        </div>
+      </section>
+
+      {status && <p className="mt-5 text-center text-sm text-variant">{status}</p>}
     </div>
   );
 }
@@ -745,8 +934,14 @@ function ToggleButton({ enabled, label, onClick }) {
   );
 }
 
-function SettingsView({ settings, onSetEnabled, onSetPaused }) {
+function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOptIn }) {
   const [saveLabel, setSaveLabel] = useState('Save Settings');
+  const [leaderboardName, setLeaderboardName] = useState(settings.leaderboard.displayName || 'Anonymous Reader');
+  const [leaderboardStatus, setLeaderboardStatus] = useState('');
+
+  useEffect(() => {
+    setLeaderboardName(settings.leaderboard.displayName || 'Anonymous Reader');
+  }, [settings.leaderboard.displayName]);
 
   function markSaved() {
     setSaveLabel('Settings Saved');
@@ -762,6 +957,21 @@ function SettingsView({ settings, onSetEnabled, onSetPaused }) {
     if (!settings.enabled) return;
     await onSetPaused(!settings.paused);
     markSaved();
+  }
+
+  async function toggleLeaderboard() {
+    await onSetLeaderboardOptIn(!settings.leaderboard.enabled, leaderboardName);
+    setLeaderboardStatus(!settings.leaderboard.enabled ? 'Leaderboard sharing enabled.' : 'Leaderboard sharing disabled.');
+  }
+
+  async function saveLeaderboardName() {
+    await onSetLeaderboardOptIn(settings.leaderboard.enabled, leaderboardName);
+    setLeaderboardStatus('Leaderboard profile saved.');
+  }
+
+  async function exportLeaderboardData() {
+    const result = await downloadLeaderboardPayload();
+    setLeaderboardStatus(result.ok ? 'Leaderboard data downloaded.' : 'Enable leaderboard sharing first.');
   }
 
   return (
@@ -784,6 +994,38 @@ function SettingsView({ settings, onSetEnabled, onSetPaused }) {
             </div>
             <ToggleButton enabled={settings.enabled && settings.paused} label="Pause Tracking" onClick={togglePaused} />
           </div>
+        </div>
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-4 text-xl font-semibold text-ink">Leaderboard</h2>
+        <div className="card p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-base font-medium text-ink">Opt in to leaderboard</h3>
+              <p className="text-sm leading-5 text-variant">Share aggregate focus stats only. Document names, URLs, and raw session history stay local.</p>
+            </div>
+            <ToggleButton enabled={settings.leaderboard.enabled} label="Opt in to leaderboard" onClick={toggleLeaderboard} />
+          </div>
+          <label className="mt-5 block text-sm font-medium text-variant" htmlFor="leaderboard-name">
+            Display name
+          </label>
+          <input
+            id="leaderboard-name"
+            className="mt-2 h-11 w-full rounded-lg border border-outline bg-white px-3 text-sm text-ink outline-none transition focus:border-primary"
+            maxLength={40}
+            onChange={event => setLeaderboardName(event.target.value)}
+            placeholder="Anonymous Reader"
+            value={leaderboardName}
+          />
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button className="secondary-button" onClick={saveLeaderboardName}>
+              Save Profile
+            </button>
+            <button className="ghost-button" onClick={exportLeaderboardData}>
+              Share Data
+            </button>
+          </div>
+          {leaderboardStatus && <p className="mt-3 text-sm text-success">{leaderboardStatus}</p>}
         </div>
       </section>
       <section className="mt-8">
@@ -815,10 +1057,11 @@ function BottomNav({ currentView, setCurrentView }) {
     ['tracker', 'Tracker', <StopwatchIcon className="h-5 w-5" />],
     ['library', 'Library', <BookIcon className="h-5 w-5" />],
     ['insights', 'Insights', <ChartIcon className="h-5 w-5" />],
+    ['leaderboard', 'Board', <TrophyIcon className="h-5 w-5" />],
   ];
 
   return (
-    <nav className="grid grid-cols-3 border-t border-outline bg-white px-4 pb-4 pt-3">
+    <nav className="grid grid-cols-4 border-t border-outline bg-white px-3 pb-4 pt-3">
       {items.map(([id, label, icon]) => {
         const active = currentView === id || (currentView === 'settings' && id === 'insights' ? false : false);
         return (
@@ -892,6 +1135,11 @@ function App() {
     setManualView(paused ? 'paused' : 'tracker');
   }
 
+  async function setLeaderboardOptIn(enabled, displayName) {
+    await runAction(MESSAGE_ACTIONS.SET_LEADERBOARD_OPT_IN, { enabled, displayName });
+    setManualView('settings');
+  }
+
   function viewLogs() {
     setManualView('library');
   }
@@ -918,7 +1166,15 @@ function App() {
         {currentView === 'paused' && <PausedView state={state} currentSessionSeconds={currentSessionSeconds} onResume={resumeTracking} />}
         {currentView === 'library' && <LibraryView sessions={sessions} onViewAll={viewLogs} />}
         {currentView === 'insights' && <InsightsView daily={daily} sessions={sessions} onViewAll={viewLogs} />}
-        {currentView === 'settings' && <SettingsView settings={settings || DEFAULT_SETTINGS} onSetEnabled={setTrackingEnabled} onSetPaused={setTrackingPaused} />}
+        {currentView === 'leaderboard' && <LeaderboardView settings={settings || normalizeSettings()} onOpenSettings={() => setManualView('settings')} />}
+        {currentView === 'settings' && (
+          <SettingsView
+            settings={settings || normalizeSettings()}
+            onSetEnabled={setTrackingEnabled}
+            onSetPaused={setTrackingPaused}
+            onSetLeaderboardOptIn={setLeaderboardOptIn}
+          />
+        )}
       </main>
       <BottomNav currentView={currentView} setCurrentView={setManualView} />
     </div>
