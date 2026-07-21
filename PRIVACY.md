@@ -32,7 +32,7 @@ By default, FlowTrakka stores data locally using Chrome's `chrome.storage.local`
 
 Leaderboard sharing is optional and disabled by default.
 
-If you opt in, FlowTrakka prepares aggregate statistics for competition and reward features. These aggregate statistics may include:
+If you opt in, FlowTrakka prepares aggregate statistics for competition and reward features and may send those aggregate statistics to the leaderboard backend configured in the extension settings. These aggregate statistics may include:
 
 - Display name.
 - Locally generated user ID.
@@ -45,11 +45,11 @@ If you opt in, FlowTrakka prepares aggregate statistics for competition and rewa
 
 Leaderboard sharing does not include document contents, document titles, document URLs, or raw session history.
 
-You can disable leaderboard sharing from the extension settings.
+You can disable leaderboard sharing from the extension settings. Disabling leaderboard sharing stops future publishing of your aggregate score from that browser.
 
 ## Data Export
 
-FlowTrakka allows you to export your local data as a JSON file. Exported files are controlled by you and are not automatically transmitted by the extension.
+FlowTrakka allows you to export your local data as a JSON file. Exported files are controlled by you and are not automatically transmitted by the extension. If leaderboard sharing is enabled, only the aggregate leaderboard payload described above is sent to the configured leaderboard backend.
 
 ## Permissions
 
@@ -59,6 +59,7 @@ FlowTrakka requests Chrome permissions only to provide its core tracking feature
 - `tabs`: detects whether the active tab is a supported document so tracking can start or stop automatically.
 - `idle`: detects inactivity so idle time is not counted as focused time.
 - `alarms`: runs a lightweight periodic heartbeat to update focus totals.
+- Host access to the configured leaderboard backend: syncs opt-in aggregate leaderboard stats so rankings can be shared across users.
 
 FlowTrakka does not use these permissions to read document contents.
 

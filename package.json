@@ -1,11 +1,14 @@
 {
   "name": "flowtrakka-extension",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "leaderboard:server": "node leaderboard-server/server.js",
+    "leaderboard:worker:deploy": "npx wrangler deploy --config leaderboard-worker/wrangler.toml",
+    "leaderboard:worker:dev": "npx wrangler dev --config leaderboard-worker/wrangler.toml",
     "preview": "vite preview"
   },
   "dependencies": {

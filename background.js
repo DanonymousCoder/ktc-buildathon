@@ -55,8 +55,10 @@ const MESSAGE_ACTIONS = {
   PAUSE_TRACKING: 'PAUSE_TRACKING',
   RESUME_TRACKING: 'RESUME_TRACKING',
   SET_LEADERBOARD_OPT_IN: 'SET_LEADERBOARD_OPT_IN',
+  SET_LEADERBOARD_SYNC_URL: 'SET_LEADERBOARD_SYNC_URL',
   SET_TRACKING_ENABLED: 'SET_TRACKING_ENABLED',
   SET_TRACKING_PAUSED: 'SET_TRACKING_PAUSED',
+  SYNC_LEADERBOARD: 'SYNC_LEADERBOARD',
   STOP_AND_SAVE: 'STOP_AND_SAVE',
 };
 
@@ -68,6 +70,8 @@ const DEFAULT_SETTINGS = {
     userId: null,
     consentedAt: null,
     revokedAt: null,
+    syncUrl: 'https://flowtrakka-leaderboard.flowtrakka.workers.dev',
+    lastSyncedAt: null,
   },
   paused: false,
 };
@@ -214,6 +218,19 @@ async function getLeaderboardEntries() {
 
 async function setLeaderboardEntries(entries) {
   await setInStorage({ leaderboard_entries: entries });
+}
+
+function normalizeLeaderboardUrl(syncUrl) {
+  const value = String(syncUrl || '').trim().replace(/\/+$/, '');
+  if (!value) return null;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.toString().replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
 }
 
 async function getTrackingSettings() {
@@ -616,6 +633,28 @@ function toLeaderboardEntry(payload) {
   };
 }
 
+async function fetchRemoteLeaderboard(baseUrl) {
+  const response = await fetch(`${baseUrl}/api/leaderboard`);
+  if (!response.ok) throw new Error(`leaderboard_fetch_failed_${response.status}`);
+  const body = await response.json();
+  return Array.isArray(body.entries) ? body.entries : [];
+}
+
+async function postRemoteLeaderboardEntry(baseUrl, payload) {
+  const response = await fetch(`${baseUrl}/api/leaderboard/entries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) throw new Error(`leaderboard_sync_failed_${response.status}`);
+  const body = await response.json();
+  return {
+    entry: body.entry || null,
+    entries: Array.isArray(body.entries) ? body.entries : [],
+  };
+}
+
 async function upsertLeaderboardEntry(entry) {
   const entries = await getLeaderboardEntries();
   const nextEntries = [entry, ...entries.filter(item => item.userId !== entry.userId)]
@@ -623,6 +662,82 @@ async function upsertLeaderboardEntry(entry) {
     .slice(0, 50);
   await setLeaderboardEntries(nextEntries);
   return nextEntries;
+}
+
+async function syncLeaderboardPayload(payload, settings) {
+  const baseUrl = normalizeLeaderboardUrl(settings.leaderboard.syncUrl);
+  if (!baseUrl) {
+    return {
+      ok: false,
+      source: 'local',
+      syncStatus: 'not_configured',
+      syncError: 'leaderboard_url_missing',
+      entries: await upsertLeaderboardEntry(toLeaderboardEntry(payload)),
+      ownEntry: toLeaderboardEntry(payload),
+    };
+  }
+
+  try {
+    const remote = await postRemoteLeaderboardEntry(baseUrl, payload);
+    const entries = remote.entries.length ? remote.entries : await fetchRemoteLeaderboard(baseUrl);
+    await setLeaderboardEntries(entries);
+    await setTrackingSettings({
+      ...settings,
+      leaderboard: {
+        ...settings.leaderboard,
+        lastSyncedAt: new Date().toISOString(),
+      },
+    });
+
+    return {
+      ok: true,
+      source: 'backend',
+      syncStatus: 'synced',
+      syncError: null,
+      entries,
+      ownEntry: remote.entry || toLeaderboardEntry(payload),
+    };
+  } catch (error) {
+    const ownEntry = toLeaderboardEntry(payload);
+    return {
+      ok: false,
+      source: 'local',
+      syncStatus: 'offline',
+      syncError: error?.message || 'leaderboard_sync_failed',
+      entries: await upsertLeaderboardEntry(ownEntry),
+      ownEntry,
+    };
+  }
+}
+
+async function loadSharedLeaderboard(settings) {
+  const baseUrl = normalizeLeaderboardUrl(settings.leaderboard.syncUrl);
+  if (!baseUrl) {
+    return {
+      source: 'local',
+      syncStatus: 'not_configured',
+      syncError: 'leaderboard_url_missing',
+      entries: await getLeaderboardEntries(),
+    };
+  }
+
+  try {
+    const entries = await fetchRemoteLeaderboard(baseUrl);
+    await setLeaderboardEntries(entries);
+    return {
+      source: 'backend',
+      syncStatus: 'synced',
+      syncError: null,
+      entries,
+    };
+  } catch (error) {
+    return {
+      source: 'local',
+      syncStatus: 'offline',
+      syncError: error?.message || 'leaderboard_fetch_failed',
+      entries: await getLeaderboardEntries(),
+    };
+  }
 }
 
 async function getLeaderboardPayload(sendResponse) {
@@ -645,11 +760,15 @@ async function getLeaderboard(sendResponse) {
   trackingSettings = settings;
 
   if (!settings.leaderboard.enabled) {
+    const sharedLeaderboard = await loadSharedLeaderboard(settings);
     sendResponse({
       ok: true,
       leaderboardEnabled: false,
       ownEntry: null,
-      entries: await getLeaderboardEntries(),
+      entries: sharedLeaderboard.entries,
+      source: sharedLeaderboard.source,
+      syncStatus: sharedLeaderboard.syncStatus,
+      syncError: sharedLeaderboard.syncError,
       privacy: {
         includesDocumentTitles: false,
         includesDocumentUrls: false,
@@ -660,14 +779,48 @@ async function getLeaderboard(sendResponse) {
   }
 
   const payload = buildLeaderboardPayload(dailyLogs, documents, settings);
-  const ownEntry = toLeaderboardEntry(payload);
-  const entries = await upsertLeaderboardEntry(ownEntry);
+  const syncResult = await syncLeaderboardPayload(payload, settings);
 
   sendResponse({
     ok: true,
     leaderboardEnabled: true,
-    ownEntry,
-    entries,
+    ownEntry: syncResult.ownEntry,
+    entries: syncResult.entries,
+    source: syncResult.source,
+    syncStatus: syncResult.syncStatus,
+    syncError: syncResult.syncError,
+    privacy: payload.privacy,
+  });
+}
+
+async function syncLeaderboard(sendResponse) {
+  const [dailyLogs, documents, settings] = await Promise.all([getDailyLogs(), getDocuments(), getTrackingSettings()]);
+  trackingSettings = settings;
+
+  if (!settings.leaderboard.enabled) {
+    const sharedLeaderboard = await loadSharedLeaderboard(settings);
+    sendResponse({
+      ok: true,
+      leaderboardEnabled: false,
+      ownEntry: null,
+      entries: sharedLeaderboard.entries,
+      source: sharedLeaderboard.source,
+      syncStatus: sharedLeaderboard.syncStatus,
+      syncError: sharedLeaderboard.syncError,
+    });
+    return;
+  }
+
+  const payload = buildLeaderboardPayload(dailyLogs, documents, settings);
+  const syncResult = await syncLeaderboardPayload(payload, settings);
+  sendResponse({
+    ok: true,
+    leaderboardEnabled: true,
+    ownEntry: syncResult.ownEntry,
+    entries: syncResult.entries,
+    source: syncResult.source,
+    syncStatus: syncResult.syncStatus,
+    syncError: syncResult.syncError,
     privacy: payload.privacy,
   });
 }
@@ -757,6 +910,26 @@ async function setLeaderboardOptIn(request, sendResponse) {
   sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
 }
 
+async function setLeaderboardSyncUrl(request, sendResponse) {
+  const currentSettings = await getTrackingSettings();
+  const syncUrl = normalizeLeaderboardUrl(request.syncUrl);
+
+  if (!syncUrl) {
+    sendResponse({ ok: false, error: 'invalid_leaderboard_url' });
+    return;
+  }
+
+  await setTrackingSettings({
+    ...currentSettings,
+    leaderboard: {
+      ...currentSettings.leaderboard,
+      syncUrl,
+    },
+  });
+
+  sendResponse({ ok: true, ...(await getTrackingSnapshot()) });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   initializeEngine();
 });
@@ -838,6 +1011,16 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
   if (request.action === MESSAGE_ACTIONS.SET_LEADERBOARD_OPT_IN || request.action === 'setLeaderboardOptIn') {
     setLeaderboardOptIn(request, sendResponse);
+    return true;
+  }
+
+  if (request.action === MESSAGE_ACTIONS.SET_LEADERBOARD_SYNC_URL || request.action === 'setLeaderboardSyncUrl') {
+    setLeaderboardSyncUrl(request, sendResponse);
+    return true;
+  }
+
+  if (request.action === MESSAGE_ACTIONS.SYNC_LEADERBOARD || request.action === 'syncLeaderboard') {
+    syncLeaderboard(sendResponse);
     return true;
   }
 

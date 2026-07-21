@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FlowTrakka - Document Focus Tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "FlowTrakka automatically tracks focused time across PDFs, slides, docs, and sheets in Chrome.",
   "permissions": [
     "storage",
@@ -9,6 +9,9 @@
     "windows",
     "alarms",
     "idle"
+  ],
+  "host_permissions": [
+    "https://flowtrakka-leaderboard.flowtrakka.workers.dev/*"
   ],
   "action": {
     "default_popup": "popup.html",

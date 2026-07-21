@@ -1,0 +1,8 @@
+name = "flowtrakka-leaderboard"
+main = "src/index.js"
+compatibility_date = "2026-07-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "flowtrakka_leaderboard"
+database_id = "2d4eb72d-b8ab-4e67-bf9c-b94c992ef168"

@@ -3,3 +3,4 @@ node_modules/
 dist/
 .vite/
 .DS_Store
+leaderboard-server/data/

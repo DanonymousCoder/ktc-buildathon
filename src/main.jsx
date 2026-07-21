@@ -21,8 +21,10 @@ const MESSAGE_ACTIONS = {
   PAUSE_TRACKING: 'PAUSE_TRACKING',
   RESUME_TRACKING: 'RESUME_TRACKING',
   SET_LEADERBOARD_OPT_IN: 'SET_LEADERBOARD_OPT_IN',
+  SET_LEADERBOARD_SYNC_URL: 'SET_LEADERBOARD_SYNC_URL',
   SET_TRACKING_ENABLED: 'SET_TRACKING_ENABLED',
   SET_TRACKING_PAUSED: 'SET_TRACKING_PAUSED',
+  SYNC_LEADERBOARD: 'SYNC_LEADERBOARD',
   STOP_AND_SAVE: 'STOP_AND_SAVE',
 };
 
@@ -34,6 +36,8 @@ const DEFAULT_SETTINGS = {
     userId: null,
     consentedAt: null,
     revokedAt: null,
+    syncUrl: 'https://flowtrakka-leaderboard.flowtrakka.workers.dev',
+    lastSyncedAt: null,
   },
   paused: false,
 };
@@ -250,6 +254,10 @@ async function downloadLeaderboardPayload() {
 
 function requestLeaderboard() {
   return sendRuntimeAction(MESSAGE_ACTIONS.GET_LEADERBOARD);
+}
+
+function requestLeaderboardSync() {
+  return sendRuntimeAction(MESSAGE_ACTIONS.SYNC_LEADERBOARD);
 }
 
 function useExactLiveSeconds(state, fallbackSeconds) {
@@ -823,14 +831,36 @@ function LeaderboardView({ settings, onOpenSettings }) {
     leaderboardEnabled: settings.leaderboard.enabled,
     ownEntry: null,
     entries: [],
+    source: 'local',
+    syncStatus: 'idle',
+    syncError: null,
   });
   const [status, setStatus] = useState('');
 
-  async function loadLeaderboard() {
-    const response = await requestLeaderboard();
+  function setLeaderboardStatus(response) {
+    if (response.syncStatus === 'synced' && response.source === 'backend') {
+      setStatus(response.leaderboardEnabled ? 'Synced with shared leaderboard.' : 'Viewing shared leaderboard. Opt in to publish your score.');
+      return;
+    }
+
+    if (response.syncStatus === 'offline') {
+      setStatus('Backend unavailable. Showing local cached rankings.');
+      return;
+    }
+
+    if (response.syncStatus === 'not_configured') {
+      setStatus('Add a leaderboard API URL in Settings.');
+      return;
+    }
+
+    setStatus(response.leaderboardEnabled ? 'Leaderboard updated.' : 'Opt in to publish your score.');
+  }
+
+  async function loadLeaderboard(syncNow = false) {
+    const response = syncNow ? await requestLeaderboardSync() : await requestLeaderboard();
     if (response?.ok) {
       setLeaderboard(response);
-      setStatus(response.leaderboardEnabled ? 'Leaderboard updated.' : 'Opt in to publish your score.');
+      setLeaderboardStatus(response);
       return;
     }
     setStatus('Leaderboard unavailable.');
@@ -891,7 +921,11 @@ function LeaderboardView({ settings, onOpenSettings }) {
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-ink">Rankings</h3>
-          <button className="text-xs font-semibold uppercase tracking-wide text-primary" onClick={loadLeaderboard}>Refresh</button>
+          <button className="text-xs font-semibold uppercase tracking-wide text-primary" onClick={() => loadLeaderboard(true)}>Sync</button>
+        </div>
+        <div className="mb-3 rounded-lg border border-outline bg-white px-3 py-2 text-xs text-variant">
+          Source: <span className="font-semibold text-ink">{leaderboard.source === 'backend' ? 'Shared backend' : 'Local cache'}</span>
+          {settings.leaderboard.lastSyncedAt ? ` - Last sync ${formatRelativeTime(settings.leaderboard.lastSyncedAt)}` : ''}
         </div>
         <div className="space-y-3">
           {entries.length ? (
@@ -934,14 +968,16 @@ function ToggleButton({ enabled, label, onClick }) {
   );
 }
 
-function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOptIn }) {
+function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOptIn, onSetLeaderboardSyncUrl }) {
   const [saveLabel, setSaveLabel] = useState('Save Settings');
   const [leaderboardName, setLeaderboardName] = useState(settings.leaderboard.displayName || 'Anonymous Reader');
+  const [leaderboardSyncUrl, setLeaderboardSyncUrl] = useState(settings.leaderboard.syncUrl || 'https://flowtrakka-leaderboard.flowtrakka.workers.dev');
   const [leaderboardStatus, setLeaderboardStatus] = useState('');
 
   useEffect(() => {
     setLeaderboardName(settings.leaderboard.displayName || 'Anonymous Reader');
-  }, [settings.leaderboard.displayName]);
+    setLeaderboardSyncUrl(settings.leaderboard.syncUrl || 'https://flowtrakka-leaderboard.flowtrakka.workers.dev');
+  }, [settings.leaderboard.displayName, settings.leaderboard.syncUrl]);
 
   function markSaved() {
     setSaveLabel('Settings Saved');
@@ -967,6 +1003,11 @@ function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOpt
   async function saveLeaderboardName() {
     await onSetLeaderboardOptIn(settings.leaderboard.enabled, leaderboardName);
     setLeaderboardStatus('Leaderboard profile saved.');
+  }
+
+  async function saveLeaderboardSyncUrl() {
+    const response = await onSetLeaderboardSyncUrl(leaderboardSyncUrl);
+    setLeaderboardStatus(response?.ok ? 'Leaderboard backend saved.' : 'Enter a valid http or https URL.');
   }
 
   async function exportLeaderboardData() {
@@ -1017,14 +1058,27 @@ function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOpt
             placeholder="Anonymous Reader"
             value={leaderboardName}
           />
+          <label className="mt-4 block text-sm font-medium text-variant" htmlFor="leaderboard-sync-url">
+            Leaderboard API URL
+          </label>
+          <input
+            id="leaderboard-sync-url"
+            className="mt-2 h-11 w-full rounded-lg border border-outline bg-white px-3 text-sm text-ink outline-none transition focus:border-primary"
+            onChange={event => setLeaderboardSyncUrl(event.target.value)}
+            placeholder="https://api.flowtrakka.com"
+            value={leaderboardSyncUrl}
+          />
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button className="secondary-button" onClick={saveLeaderboardName}>
               Save Profile
             </button>
-            <button className="ghost-button" onClick={exportLeaderboardData}>
-              Share Data
+            <button className="secondary-button" onClick={saveLeaderboardSyncUrl}>
+              Save API URL
             </button>
           </div>
+          <button className="ghost-button mt-3 w-full" onClick={exportLeaderboardData}>
+            Download Aggregate Payload
+          </button>
           {leaderboardStatus && <p className="mt-3 text-sm text-success">{leaderboardStatus}</p>}
         </div>
       </section>
@@ -1140,6 +1194,12 @@ function App() {
     setManualView('settings');
   }
 
+  async function setLeaderboardSyncUrl(syncUrl) {
+    const response = await runAction(MESSAGE_ACTIONS.SET_LEADERBOARD_SYNC_URL, { syncUrl });
+    setManualView('settings');
+    return response;
+  }
+
   function viewLogs() {
     setManualView('library');
   }
@@ -1173,6 +1233,7 @@ function App() {
             onSetEnabled={setTrackingEnabled}
             onSetPaused={setTrackingPaused}
             onSetLeaderboardOptIn={setLeaderboardOptIn}
+            onSetLeaderboardSyncUrl={setLeaderboardSyncUrl}
           />
         )}
       </main>
