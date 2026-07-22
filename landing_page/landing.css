@@ -901,8 +901,9 @@ button {
   margin-top: auto;
   padding-top: 26px;
   border-top: 1px solid rgba(195, 198, 215, 0.66);
-  color: #777b85;
-  font-size: 12px;
+  color: #5f6470;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .privacy-page {

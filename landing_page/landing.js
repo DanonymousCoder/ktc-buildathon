@@ -49,7 +49,7 @@ function initializeScrollReveals() {
     { selector: '.features-heading > *', variant: 'reveal-up' },
     { selector: '.orbit-node', variant: 'reveal-fade' },
     { selector: '.orbit-detail', variant: 'reveal-fade' },
-    { selector: '.footer-brand, .footer-nav, .footer-signup, .footer-bottom', variant: 'reveal-up' },
+    { selector: '.footer-brand, .footer-nav, .footer-signup', variant: 'reveal-up' },
     { selector: '.privacy-hero > *', variant: 'reveal-up' },
     { selector: '.privacy-card > *', variant: 'reveal-up' },
   ];
