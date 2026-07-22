@@ -1,6 +1,6 @@
 # FlowTrakka Privacy Policy
 
-Effective date: July 20, 2026
+Effective date: July 22, 2026
 
 FlowTrakka is a Chrome extension that helps users track focused study and document review time across supported browser documents, including PDFs, slide decks, documents, and spreadsheets.
 
@@ -27,6 +27,12 @@ FlowTrakka does not include document titles, document URLs, or raw session histo
 ## Local Storage
 
 By default, FlowTrakka stores data locally using Chrome's `chrome.storage.local` API. This data remains on your device unless you choose to export it or opt in to a leaderboard feature.
+
+Waitlist email addresses submitted through the FlowTrakka website are not stored in browser local storage. They are sent to and stored by the FlowTrakka backend.
+
+## Waitlist Emails
+
+If you submit an email address through a FlowTrakka website waitlist form, FlowTrakka sends that address to its backend and stores it in a durable database. The address is used to provide launch and product availability updates. Duplicate submissions update the existing record rather than creating additional subscriber records.
 
 ## Leaderboard Sharing
 
@@ -70,6 +76,8 @@ FlowTrakka does not execute remotely hosted code. All extension code is packaged
 ## Data Retention
 
 Local data remains in your browser until you remove it, clear extension storage, or uninstall the extension.
+
+Waitlist email addresses remain in the backend until they are no longer needed for product updates or you request their removal through the publisher contact listed below.
 
 ## Changes To This Policy
 

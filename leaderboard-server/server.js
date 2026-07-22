@@ -37,9 +37,12 @@ async function readStore() {
   try {
     const contents = await readFile(DB_FILE, 'utf8');
     const parsed = JSON.parse(contents);
-    return { entries: Array.isArray(parsed.entries) ? parsed.entries : [] };
+    return {
+      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+      waitlist: Array.isArray(parsed.waitlist) ? parsed.waitlist : [],
+    };
   } catch {
-    return { entries: [] };
+    return { entries: [], waitlist: [] };
   }
 }
 
@@ -66,6 +69,14 @@ function sanitizeTypeTotals(value) {
     totals[key] = sanitizeNumber(seconds);
     return totals;
   }, {});
+}
+
+function normalizeEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('invalid_email');
+  }
+  return email;
 }
 
 function sortEntries(entries) {
@@ -120,12 +131,39 @@ async function handleLeaderboardPost(request, response) {
     const entry = toLeaderboardEntry(payload);
     const store = await readStore();
     const entries = sortEntries([entry, ...store.entries.filter(item => item.userId !== entry.userId)]);
-    await writeStore({ entries });
+    await writeStore({ ...store, entries });
     sendJson(response, 200, { ok: true, entry, entries });
   } catch (error) {
     sendJson(response, 400, {
       ok: false,
       error: error?.message || 'invalid_leaderboard_payload',
+    });
+  }
+}
+
+async function handleWaitlistPost(request, response) {
+  try {
+    const body = await readRequestBody(request);
+    const payload = JSON.parse(body || '{}');
+    const email = normalizeEmail(payload.email);
+    const source = String(payload.source || 'landing-page').trim().slice(0, 40) || 'landing-page';
+    const store = await readStore();
+    const existing = store.waitlist.find(item => item.email === email);
+    const now = new Date().toISOString();
+    const subscriber = {
+      email,
+      source,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+    const waitlist = [subscriber, ...store.waitlist.filter(item => item.email !== email)];
+
+    await writeStore({ ...store, waitlist });
+    sendJson(response, 200, { ok: true, subscribed: true });
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      error: error?.message || 'waitlist_subscription_failed',
     });
   }
 }
@@ -151,6 +189,11 @@ const server = createServer(async (request, response) => {
 
   if (request.method === 'POST' && requestUrl.pathname === '/api/leaderboard/entries') {
     await handleLeaderboardPost(request, response);
+    return;
+  }
+
+  if (request.method === 'POST' && requestUrl.pathname === '/api/waitlist') {
+    await handleWaitlistPost(request, response);
     return;
   }
 

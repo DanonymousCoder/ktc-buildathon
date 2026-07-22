@@ -37,6 +37,14 @@ function sanitizeTypeTotals(value) {
   }, {});
 }
 
+function normalizeEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('invalid_email');
+  }
+  return email;
+}
+
 function assertPrivacySafe(payload) {
   const privacy = payload?.privacy || {};
   return (
@@ -136,6 +144,29 @@ async function upsertLeaderboardEntry(request, env) {
   }
 }
 
+async function subscribeToWaitlist(request, env) {
+  try {
+    const payload = await request.json();
+    const email = normalizeEmail(payload?.email);
+    const source = String(payload?.source || 'landing-page').trim().slice(0, 40) || 'landing-page';
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(
+      `INSERT INTO waitlist_subscribers (email, source, created_at, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET
+         source = excluded.source,
+         updated_at = excluded.updated_at`
+    )
+      .bind(email, source, now, now)
+      .run();
+
+    return jsonResponse({ ok: true, subscribed: true });
+  } catch (error) {
+    return jsonResponse({ ok: false, error: error?.message || 'waitlist_subscription_failed' }, 400);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -154,6 +185,10 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/api/leaderboard/entries') {
       return upsertLeaderboardEntry(request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/waitlist') {
+      return subscribeToWaitlist(request, env);
     }
 
     return jsonResponse({ ok: false, error: 'not_found' }, 404);

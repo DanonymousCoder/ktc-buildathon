@@ -1,6 +1,6 @@
-# FlowTrakka Cloudflare Leaderboard
+# FlowTrakka Cloudflare Backend
 
-This is the recommended free production backend for FlowTrakka's shared leaderboard. It uses Cloudflare Workers for the API and Cloudflare D1 for durable SQL storage.
+This is the recommended free production backend for FlowTrakka's shared leaderboard and landing-page waitlist. It uses Cloudflare Workers for the API and Cloudflare D1 for durable SQL storage.
 
 Unlike Render Free web services, Workers do not need a warm server process, so the leaderboard API does not spin down after idle periods.
 
@@ -21,7 +21,7 @@ npx wrangler d1 create flowtrakka_leaderboard
 
 Copy the returned `database_id` into `leaderboard-worker/wrangler.toml`.
 
-Create the table:
+Create or update the tables:
 
 ```bash
 npx wrangler d1 execute flowtrakka_leaderboard --remote --file=leaderboard-worker/schema.sql
@@ -48,5 +48,8 @@ Required endpoints:
 - `GET /health`
 - `GET /api/leaderboard`
 - `POST /api/leaderboard/entries`
+- `POST /api/waitlist`
 
 The Worker rejects payloads that do not explicitly exclude document titles, document URLs, and raw session history.
+
+`POST /api/waitlist` accepts `{ "email": "reader@example.com", "source": "hero" }`. Emails are normalized, validated, and stored once in the `waitlist_subscribers` D1 table. There is intentionally no public endpoint for listing subscribers.

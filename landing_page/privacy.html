@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="flowtrakka-api-base" content="https://flowtrakka-leaderboard.flowtrakka.workers.dev" />
     <meta name="description" content="FlowTrakka privacy policy." />
     <title>Privacy Policy - FlowTrakka</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,7 +13,8 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="./index.html" aria-label="FlowTrakka home">
+      <nav class="header-nav" aria-label="Primary navigation">
+        <a class="brand" href="./index.html" aria-label="FlowTrakka home">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="13" r="8"></circle>
@@ -22,20 +24,49 @@
           </svg>
         </span>
         <span>FlowTrakka</span>
-      </a>
-      <nav class="top-nav" aria-label="Primary navigation">
+        </a>
+      <div class="top-nav">
         <a href="./index.html#features">Features</a>
         <a href="./index.html#about">About</a>
+      </div>
+      <div class="header-actions">
+        <a class="header-action header-action-secondary" href="./index.html">Home</a>
+        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+        </div>
+        <button class="menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-menu">
+        <span></span>
+        <span></span>
+        <span></span>
+        </button>
       </nav>
-      <a class="header-action" href="./index.html#waitlist">Get Notified</a>
     </header>
+
+    <div class="menu-overlay" data-menu-close hidden></div>
+    <aside class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation" aria-hidden="true" inert>
+      <div class="mobile-menu-header">
+        <span class="mobile-menu-title">Menu</span>
+        <button class="menu-close" type="button" aria-label="Close navigation menu">
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      <div class="mobile-menu-links">
+        <a href="./index.html#features">Features</a>
+        <a href="./index.html#about">About</a>
+        <a href="./privacy.html" aria-current="page">Privacy</a>
+      </div>
+      <div class="mobile-menu-footer">
+        <a class="header-action header-action-secondary" href="./index.html">Home</a>
+        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+      </div>
+    </aside>
 
     <main class="privacy-page">
       <section class="privacy-hero">
         <p class="eyebrow"><span></span> Privacy Policy</p>
         <h1>Simple, local-first tracking.</h1>
         <p>FlowTrakka measures focused document activity without reading your document contents. Leaderboard sharing is optional and aggregate-only.</p>
-        <p class="privacy-date">Effective date: July 20, 2026</p>
+        <p class="privacy-date">Effective date: July 22, 2026</p>
       </section>
 
       <section class="privacy-card">
@@ -46,7 +77,10 @@
         <p>FlowTrakka does not store document contents, keystrokes, unrelated browsing history, document titles in leaderboard payloads, document URLs in leaderboard payloads, or raw session history in leaderboard payloads.</p>
 
         <h2>Local Storage</h2>
-        <p>By default, tracking data stays on your device using Chrome local extension storage. You can export your own data from the extension settings.</p>
+        <p>By default, tracking data stays on your device using Chrome local extension storage. You can export your own data from the extension settings. Waitlist emails are not stored in browser local storage.</p>
+
+        <h2>Waitlist Emails</h2>
+        <p>If you submit an email through a FlowTrakka website form, the address is sent to the FlowTrakka backend and stored in a durable database for launch and product availability updates. Duplicate submissions update the existing subscriber record.</p>
 
         <h2>Leaderboard Sharing</h2>
         <p>Leaderboard sharing is disabled by default. If you opt in, FlowTrakka may send aggregate stats to the configured leaderboard backend, such as display name, user ID, focus totals, streak, document count, and document-type totals.</p>
@@ -63,21 +97,42 @@
     </main>
 
     <footer class="site-footer">
-      <a class="footer-brand" href="./index.html">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="13" r="8"></circle>
-            <path d="M12 9v5l3 2"></path>
-            <path d="M9 2h6"></path>
-            <path d="M12 2v3"></path>
-          </svg>
-        </span>
-        FlowTrakka
-      </a>
-      <div class="footer-links">
-        <a href="./index.html">Home</a>
-        <span>© 2026 FlowTrakka. Designed for focus.</span>
+      <div class="footer-inner">
+        <a class="footer-brand" href="./index.html" aria-label="FlowTrakka home">
+          <span class="footer-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="13" r="8"></circle>
+              <path d="M12 9v5l3 2"></path>
+              <path d="M9 2h6"></path>
+              <path d="M12 2v3"></path>
+            </svg>
+          </span>
+          <span>FlowTrakka</span>
+        </a>
+
+        <nav class="footer-nav" aria-label="Footer navigation">
+          <a href="./index.html">Home</a>
+          <a href="./index.html#about">About</a>
+          <a href="./index.html#features">Features</a>
+          <a href="./privacy.html" aria-current="page">Privacy</a>
+        </nav>
+
+        <div class="footer-signup">
+          <p>Quiet updates for focused readers.</p>
+          <form class="footer-form" data-waitlist-form data-waitlist-source="privacy-footer" aria-label="Join the FlowTrakka waitlist from the footer">
+            <label class="sr-only" for="footer-email">Academic email</label>
+            <input id="footer-email" name="email" type="email" placeholder="Enter your academic email" autocomplete="email" />
+            <button type="submit">Get Started</button>
+          </form>
+          <p class="footer-form-note" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="footer-bottom">
+          <span>Copyright © 2026 FlowTrakka. All rights reserved.</span>
+          <span>Designed for focus, built for privacy.</span>
+        </div>
       </div>
     </footer>
+    <script src="./landing.js"></script>
   </body>
 </html>

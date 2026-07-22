@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="flowtrakka-api-base" content="https://flowtrakka-leaderboard.flowtrakka.workers.dev" />
     <meta
       name="description"
       content="FlowTrakka automatically measures focused document reading time across PDFs, slides, docs, and sheets in Chrome."
@@ -15,7 +16,8 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="FlowTrakka home">
+      <nav class="header-nav" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="FlowTrakka home">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="13" r="8"></circle>
@@ -25,27 +27,55 @@
           </svg>
         </span>
         <span>FlowTrakka</span>
-      </a>
-      <nav class="top-nav" aria-label="Primary navigation">
+        </a>
+        <div class="top-nav">
         <a href="#features">Features</a>
         <a href="#about">About</a>
+        </div>
+        <div class="header-actions">
+        <a class="header-action header-action-secondary" href="./privacy.html">Privacy</a>
+        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+        </div>
+        <button class="menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-menu">
+        <span></span>
+        <span></span>
+        <span></span>
+        </button>
       </nav>
-      <a class="header-action" href="#waitlist">Get Notified</a>
     </header>
+
+    <div class="menu-overlay" data-menu-close hidden></div>
+    <aside class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation" aria-hidden="true" inert>
+      <div class="mobile-menu-header">
+        <span class="mobile-menu-title">Menu</span>
+        <button class="menu-close" type="button" aria-label="Close navigation menu">
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      <div class="mobile-menu-links">
+        <a href="#features">Features</a>
+        <a href="#about">About</a>
+        <a href="./privacy.html">Privacy</a>
+      </div>
+      <div class="mobile-menu-footer">
+        <a class="header-action header-action-secondary" href="./privacy.html">Privacy Policy</a>
+        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+      </div>
+    </aside>
 
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> Coming soon</p>
+          <p class="eyebrow"><span></span> Built for focused reading</p>
           <h1 id="hero-title">Your Reading Time, <strong>Finally Measured.</strong></h1>
           <p class="hero-text">
-            FlowTrakka automatically tracks active document focus time in Chrome so students and researchers can understand deep work without extra buttons,
-            spreadsheets, or guesswork.
+            FlowTrakka tracks active document focus time in Chrome, giving students and researchers a clear record of deep work without manual timers or guesswork.
           </p>
-          <form class="waitlist-form" id="waitlist" aria-label="Join the FlowTrakka waitlist">
+          <form class="waitlist-form" id="waitlist" data-waitlist-form data-waitlist-source="hero" aria-label="Join the FlowTrakka waitlist">
             <label class="sr-only" for="email">Academic email</label>
             <input id="email" name="email" type="email" placeholder="Enter your academic email" autocomplete="email" />
-            <button type="submit">Notify Me</button>
+            <button type="submit">Get Started</button>
           </form>
           <p class="form-note" id="form-note" role="status" aria-live="polite"></p>
           <ul class="trust-list" aria-label="Product attributes">
@@ -74,7 +104,15 @@
           </ul>
         </div>
         <div class="hero-media" aria-hidden="true">
-          <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
+          <div class="hero-panel hero-panel-top">
+            <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
+          </div>
+          <div class="hero-panel hero-panel-bottom">
+            <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
+          </div>
+          <div class="hero-panel hero-panel-tall">
+            <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
+          </div>
         </div>
       </section>
 
@@ -83,71 +121,113 @@
         <p>Designed specifically for focused students and researchers. No noisy gamification, no manual timers, and no document contents leaving your browser.</p>
       </section>
 
-      <section class="features" id="features" aria-label="FlowTrakka features">
-        <article class="feature-card">
-          <span class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M3 12a9 9 0 0 0 14.7 7"></path>
-              <path d="M21 12A9 9 0 0 0 6.3 5"></path>
-              <path d="M7 5H3V1"></path>
-              <path d="M17 19h4v4"></path>
-            </svg>
-          </span>
-          <h3>Automatic Tracking</h3>
-          <p>FlowTrakka detects when you are actively focused on supported PDFs, slides, docs, and sheets, then measures time in the background.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 2v4"></path>
-              <path d="M12 18v4"></path>
-              <path d="M4.93 4.93l2.83 2.83"></path>
-              <path d="M16.24 16.24l2.83 2.83"></path>
-              <circle cx="12" cy="12" r="4"></circle>
-            </svg>
-          </span>
-          <h3>Smart Detection</h3>
-          <p>Active tab, focus, idle state, and document type signals work together so forgotten tabs and distractions do not inflate your study record.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-              <path d="M9 12l2 2 4-5"></path>
-            </svg>
-          </span>
-          <h3>Privacy First</h3>
-          <p>Your study habits are yours. Local tracking is the default, and leaderboard sharing is opt-in with aggregate stats only.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M22 10v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6"></path>
-              <path d="M12 2l10 6-10 6L2 8l10-6z"></path>
-              <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-            </svg>
-          </span>
-          <h3>Built For Students</h3>
-          <p>Export logs for personal review, compare aggregate progress with opted-in peers, and keep a cleaner record of deep academic work.</p>
-        </article>
+      <section class="features-section" id="features" aria-labelledby="features-title">
+        <div class="features-heading">
+          <p class="section-kicker">How FlowTrakka works</p>
+          <h2 id="features-title">One quiet system for every focused session.</h2>
+          <p>Select a capability to see how FlowTrakka turns browser activity into a useful, privacy-first study record.</p>
+        </div>
+
+        <div class="feature-orbit">
+          <div class="orbit-ring orbit-ring-outer" aria-hidden="true"></div>
+          <div class="orbit-ring orbit-ring-inner" aria-hidden="true"></div>
+
+          <button class="orbit-node orbit-node-top is-active" type="button" data-feature="tracking" aria-pressed="true">
+            <span class="orbit-node-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="8"></circle>
+                <path d="M12 8v5l3 2"></path>
+              </svg>
+            </span>
+            <span>Automatic Tracking</span>
+          </button>
+
+          <button class="orbit-node orbit-node-right" type="button" data-feature="detection" aria-pressed="false">
+            <span class="orbit-node-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
+                <circle cx="12" cy="12" r="4"></circle>
+              </svg>
+            </span>
+            <span>Smart Detection</span>
+          </button>
+
+          <button class="orbit-node orbit-node-bottom" type="button" data-feature="privacy" aria-pressed="false">
+            <span class="orbit-node-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <path d="M9 12l2 2 4-5"></path>
+              </svg>
+            </span>
+            <span>Privacy First</span>
+          </button>
+
+          <button class="orbit-node orbit-node-left" type="button" data-feature="students" aria-pressed="false">
+            <span class="orbit-node-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3 2 8l10 5 10-5-10-5z"></path>
+                <path d="M6 11v5c3 3 9 3 12 0v-5"></path>
+              </svg>
+            </span>
+            <span>Built for Students</span>
+          </button>
+
+          <article class="orbit-detail" aria-live="polite">
+            <div class="orbit-detail-meta">
+              <span class="orbit-status">Core capability</span>
+              <span class="orbit-index">01 / 04</span>
+            </div>
+            <h3>Automatic Tracking</h3>
+            <p>FlowTrakka detects supported PDFs, slides, docs, and sheets, then measures active focus time quietly in the background.</p>
+            <div class="orbit-signal">
+              <span>Session confidence</span>
+              <strong>Live</strong>
+            </div>
+            <div class="orbit-meter" aria-hidden="true"><span></span></div>
+            <ul class="orbit-points">
+              <li>Active-tab aware</li>
+              <li>No manual timer</li>
+            </ul>
+          </article>
+        </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <a class="footer-brand" href="#top">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="13" r="8"></circle>
-            <path d="M12 9v5l3 2"></path>
-            <path d="M9 2h6"></path>
-            <path d="M12 2v3"></path>
-          </svg>
-        </span>
-        FlowTrakka
-      </a>
-      <div class="footer-links">
-        <a href="./privacy.html">Privacy Policy</a>
-        <span>© 2026 FlowTrakka. Designed for focus.</span>
+      <div class="footer-inner">
+        <a class="footer-brand" href="#top" aria-label="FlowTrakka home">
+          <span class="footer-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="13" r="8"></circle>
+              <path d="M12 9v5l3 2"></path>
+              <path d="M9 2h6"></path>
+              <path d="M12 2v3"></path>
+            </svg>
+          </span>
+          <span>FlowTrakka</span>
+        </a>
+
+        <nav class="footer-nav" aria-label="Footer navigation">
+          <a href="#top">Home</a>
+          <a href="#about">About</a>
+          <a href="#features">Features</a>
+          <a href="./privacy.html">Privacy</a>
+        </nav>
+
+        <div class="footer-signup">
+          <p>Quiet updates for focused readers.</p>
+          <form class="footer-form" data-waitlist-form data-waitlist-source="footer" aria-label="Join the FlowTrakka waitlist from the footer">
+            <label class="sr-only" for="footer-email">Academic email</label>
+            <input id="footer-email" name="email" type="email" placeholder="Enter your academic email" autocomplete="email" />
+            <button type="submit">Get Started</button>
+          </form>
+          <p class="footer-form-note" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="footer-bottom">
+          <span>Copyright © 2026 FlowTrakka. All rights reserved.</span>
+          <span>Designed for focus, built for privacy.</span>
+        </div>
       </div>
     </footer>
 

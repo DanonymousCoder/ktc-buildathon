@@ -11,3 +11,13 @@ CREATE TABLE IF NOT EXISTS leaderboard_entries (
 
 CREATE INDEX IF NOT EXISTS idx_leaderboard_rank
 ON leaderboard_entries(today_seconds DESC, all_time_seconds DESC);
+
+CREATE TABLE IF NOT EXISTS waitlist_subscribers (
+  email TEXT PRIMARY KEY,
+  source TEXT NOT NULL DEFAULT 'landing-page',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_waitlist_created_at
+ON waitlist_subscribers(created_at DESC);
