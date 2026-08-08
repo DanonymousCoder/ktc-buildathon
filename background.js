@@ -48,6 +48,13 @@ const WEB_DOCUMENT_HOSTS = [
   },
 ];
 
+const GOOGLE_DRIVE_FILE_PATHS = [
+  /^\/file\/d\/[^/]+(\/|$)/,
+  /^\/open$/,
+  /^\/uc$/,
+  /^\/viewerng\/viewer$/,
+];
+
 const MESSAGE_ACTIONS = {
   GET_LEADERBOARD: 'GET_LEADERBOARD',
   GET_TRACKING_STATE: 'GET_TRACKING_STATE',
@@ -105,8 +112,25 @@ function getFileExtension(url = '') {
   }
 }
 
+function getFileExtensionFromText(text = '') {
+  const cleanedText = String(text).replace(/\s+-\s+Google Drive$/i, '').trim();
+  const match = cleanedText.match(/\.([a-z0-9]+)(?:\s|$)/i);
+  return match?.[1]?.toLowerCase() || null;
+}
+
+function getSupportedFileType(extension, source) {
+  if (!extension || !SUPPORTED_FILE_TYPES[extension]) return null;
+  return { ...SUPPORTED_FILE_TYPES[extension], source, extension };
+}
+
+function isGoogleDriveFileUrl(parsed) {
+  if (parsed.hostname !== 'drive.google.com' && !parsed.hostname.endsWith('.drive.google.com')) return false;
+  return GOOGLE_DRIVE_FILE_PATHS.some(pattern => pattern.test(parsed.pathname));
+}
+
 function detectDocument(tabOrUrl) {
   const url = typeof tabOrUrl === 'string' ? tabOrUrl : tabOrUrl?.url;
+  const title = typeof tabOrUrl === 'string' ? '' : tabOrUrl?.title || '';
   if (!url) return null;
 
   try {
@@ -115,9 +139,18 @@ function detectDocument(tabOrUrl) {
       return { type: 'pdf', label: 'PDF', family: 'reading', source: 'chrome-pdf-viewer' };
     }
 
-    const extension = getFileExtension(url);
-    if (extension && SUPPORTED_FILE_TYPES[extension]) {
-      return { ...SUPPORTED_FILE_TYPES[extension], source: 'file-extension', extension };
+    const extensionMatch = getSupportedFileType(getFileExtension(url), 'file-extension');
+    if (extensionMatch) {
+      return extensionMatch;
+    }
+
+    if (isGoogleDriveFileUrl(parsed)) {
+      const titleExtensionMatch = getSupportedFileType(getFileExtensionFromText(title), 'google-drive-title');
+      if (titleExtensionMatch) {
+        return { ...titleExtensionMatch, label: `Drive ${titleExtensionMatch.label}` };
+      }
+
+      return { type: 'drive', label: 'Drive File', family: 'drive', source: 'google-drive' };
     }
 
     const webHost = WEB_DOCUMENT_HOSTS.find(({ host }) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));
@@ -329,8 +362,42 @@ function buildTrackingState() {
   };
 }
 
+async function updateToolbarBadge(trackingState) {
+  const isTracking = trackingState.status === 'tracking';
+  const isPaused = trackingState.status === 'paused';
+  const documentTitle = trackingState.currentDocumentTitle || trackingState.currentPdfTitle;
+
+  if (isTracking) {
+    await Promise.all([
+      chrome.action.setBadgeText({ text: 'ON' }),
+      chrome.action.setBadgeBackgroundColor({ color: '#15803d' }),
+      chrome.action.setTitle({ title: `FlowTrakka: Tracking${documentTitle ? ` ${documentTitle}` : ''}` }),
+    ]);
+    return;
+  }
+
+  if (isPaused) {
+    const reason = trackingState.pauseReason === 'idle' ? 'Idle' : 'Paused';
+    await Promise.all([
+      chrome.action.setBadgeText({ text: 'II' }),
+      chrome.action.setBadgeBackgroundColor({ color: '#d97706' }),
+      chrome.action.setTitle({ title: `FlowTrakka: ${reason}${documentTitle ? ` — ${documentTitle}` : ''}` }),
+    ]);
+    return;
+  }
+
+  await Promise.all([
+    chrome.action.setBadgeText({ text: '' }),
+    chrome.action.setTitle({ title: trackingState.status === 'disabled' ? 'FlowTrakka: Tracking disabled' : 'FlowTrakka: Not tracking' }),
+  ]);
+}
+
 async function publishTrackingState() {
-  await setInStorage({ trackingState: buildTrackingState() });
+  const trackingState = buildTrackingState();
+  await Promise.all([
+    setInStorage({ trackingState }),
+    updateToolbarBadge(trackingState),
+  ]);
 }
 
 async function ensureDocumentForTab(tab) {

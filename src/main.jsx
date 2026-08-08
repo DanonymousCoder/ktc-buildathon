@@ -519,6 +519,33 @@ function StatusChip({ active = false, children, icon }) {
   );
 }
 
+function TrackingStatusBar({ state }) {
+  const tracking = state.status === 'tracking';
+  const paused = state.status === 'paused';
+  const disabled = state.status === 'disabled';
+  const documentTitle = state.currentDocumentTitle || state.currentPdfTitle;
+  const label = tracking
+    ? 'Live tracking'
+    : paused
+      ? state.pauseReason === 'idle' ? 'Paused while you are idle' : 'Tracking paused'
+      : disabled ? 'Tracking is disabled' : 'Not tracking';
+  const detail = tracking && documentTitle
+    ? documentTitle
+    : !tracking && !paused && !disabled ? 'Open a supported document to begin.' : null;
+  const colors = tracking
+    ? 'border-[#c6f6dc] bg-[#effcf4] text-[#005b28]'
+    : paused ? 'border-[#fde6b4] bg-[#fff8e7] text-[#8a4b00]'
+      : 'border-outline bg-[#f7f8fa] text-variant';
+
+  return (
+    <div className={`mx-5 mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${colors}`} role="status" aria-live="polite">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${tracking ? 'bg-[#16a34a]' : paused ? 'bg-[#d97706]' : 'bg-[#8b93a1]'}`} />
+      <span className="font-semibold">{label}</span>
+      {detail && <span className="min-w-0 truncate opacity-80">— {detail}</span>}
+    </div>
+  );
+}
+
 function MetricTile({ icon, label, value, horizontal = false }) {
   return (
     <article className={`card ${horizontal ? 'flex items-center justify-center gap-5 py-7' : 'grid min-h-[132px] place-items-center px-4 py-6 text-center'}`}>
@@ -560,11 +587,7 @@ function SummaryCard({ daily }) {
 }
 
 function RecentActivity({ sessions, compact = false, onViewAll }) {
-  const fallback = [
-    { id: 'sample-1', documentTitle: 'Lecture_Deck_Week_4.pptx', documentType: 'slides', documentTypeLabel: 'Slides', seconds: 4800, lastReadAt: null, progress: 84 },
-    { id: 'sample-2', documentTitle: 'Research_Notes.docx', documentType: 'doc', documentTypeLabel: 'Document', seconds: 2700, lastReadAt: null, progress: 32 },
-  ];
-  const items = sessions.length ? sessions : fallback;
+  const items = sessions || [];
 
   return (
     <section className={compact ? 'card p-5' : ''}>
@@ -573,7 +596,9 @@ function RecentActivity({ sessions, compact = false, onViewAll }) {
         <button className="text-xs font-semibold uppercase tracking-wide text-primary" onClick={onViewAll}>View All</button>
       </div>
       <div className="space-y-3">
-        {items.slice(0, compact ? 2 : 3).map((session, index) => {
+        {items.length === 0 ? (
+          <p className="text-sm text-variant">No recent activity yet.</p>
+        ) : items.slice(0, compact ? 2 : 3).map((session, index) => {
           const progress = session.progress || Math.min(100, Math.max(12, Math.round((session.seconds || 0) / 60)));
           return compact ? (
             <div key={session.id} className="space-y-1.5">
@@ -1205,8 +1230,9 @@ function App() {
   }
 
   return (
-    <div className="min-h-[600px] w-[390px] overflow-hidden bg-surface text-ink">
+    <div className="min-h-[600px] w-[400px] overflow-hidden bg-surface text-ink">
       <Header currentView={currentView} setCurrentView={setManualView} />
+      <TrackingStatusBar state={state} />
       <ExtensionApiNotice isExtension={isExtension} />
       <main className="min-h-[492px] overflow-y-auto">
         {currentView === 'tracker' &&
