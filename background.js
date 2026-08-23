@@ -54,6 +54,16 @@ const GOOGLE_DRIVE_FILE_PATHS = [
   /^\/uc$/,
   /^\/viewerng\/viewer$/,
 ];
+const GOOGLE_DRIVE_FOLDER_PREVIEW_PATH = /^\/drive\/folders\/[^/]+\/?$/;
+const GOOGLE_DRIVE_GENERIC_TITLES = new Set([
+  'Google Drive',
+  'My Drive',
+  'Shared with me',
+  'Recent',
+  'Starred',
+  'Trash',
+  'Computers',
+]);
 
 const MESSAGE_ACTIONS = {
   GET_LEADERBOARD: 'GET_LEADERBOARD',
@@ -113,9 +123,13 @@ function getFileExtension(url = '') {
 }
 
 function getFileExtensionFromText(text = '') {
-  const cleanedText = String(text).replace(/\s+-\s+Google Drive$/i, '').trim();
+  const cleanedText = getGoogleDriveTitle(text);
   const match = cleanedText.match(/\.([a-z0-9]+)(?:\s|$)/i);
   return match?.[1]?.toLowerCase() || null;
+}
+
+function getGoogleDriveTitle(text = '') {
+  return String(text).replace(/\s+-\s+Google Drive$/i, '').trim();
 }
 
 function getSupportedFileType(extension, source) {
@@ -123,9 +137,26 @@ function getSupportedFileType(extension, source) {
   return { ...SUPPORTED_FILE_TYPES[extension], source, extension };
 }
 
+function isGoogleDriveHost(parsed) {
+  return parsed.hostname === 'drive.google.com' || parsed.hostname.endsWith('.drive.google.com');
+}
+
 function isGoogleDriveFileUrl(parsed) {
-  if (parsed.hostname !== 'drive.google.com' && !parsed.hostname.endsWith('.drive.google.com')) return false;
+  if (!isGoogleDriveHost(parsed)) return false;
   return GOOGLE_DRIVE_FILE_PATHS.some(pattern => pattern.test(parsed.pathname));
+}
+
+function isGoogleDriveFolderPreviewUrl(parsed) {
+  return isGoogleDriveHost(parsed) && GOOGLE_DRIVE_FOLDER_PREVIEW_PATH.test(parsed.pathname);
+}
+
+function getGoogleDriveFileTypeFromChrome(tabOrUrl) {
+  const faviconText = decodeURIComponent(tabOrUrl?.favIconUrl || '');
+  if (/pdf/i.test(faviconText)) return { ...SUPPORTED_FILE_TYPES.pdf, source: 'google-drive-favicon', extension: 'pdf' };
+  if (/powerpoint|presentation|slides?|pptx?/i.test(faviconText)) return { ...SUPPORTED_FILE_TYPES.pptx, source: 'google-drive-favicon', extension: 'pptx' };
+  if (/word|document|docx?/i.test(faviconText)) return { ...SUPPORTED_FILE_TYPES.docx, source: 'google-drive-favicon', extension: 'docx' };
+  if (/excel|spreadsheet|sheets?|xlsx?/i.test(faviconText)) return { ...SUPPORTED_FILE_TYPES.xlsx, source: 'google-drive-favicon', extension: 'xlsx' };
+  return null;
 }
 
 function detectDocument(tabOrUrl) {
@@ -144,13 +175,21 @@ function detectDocument(tabOrUrl) {
       return extensionMatch;
     }
 
-    if (isGoogleDriveFileUrl(parsed)) {
+    if (isGoogleDriveFileUrl(parsed) || isGoogleDriveFolderPreviewUrl(parsed)) {
       const titleExtensionMatch = getSupportedFileType(getFileExtensionFromText(title), 'google-drive-title');
       if (titleExtensionMatch) {
         return { ...titleExtensionMatch, label: `Drive ${titleExtensionMatch.label}` };
       }
 
-      return { type: 'drive', label: 'Drive File', family: 'drive', source: 'google-drive' };
+      const faviconMatch = typeof tabOrUrl === 'string' ? null : getGoogleDriveFileTypeFromChrome(tabOrUrl);
+      if (faviconMatch) {
+        return { ...faviconMatch, label: `Drive ${faviconMatch.label}` };
+      }
+
+      const driveTitle = getGoogleDriveTitle(title);
+      if (isGoogleDriveFileUrl(parsed) || (driveTitle && !GOOGLE_DRIVE_GENERIC_TITLES.has(driveTitle))) {
+        return { type: 'drive', label: 'Drive File', family: 'drive', source: 'google-drive' };
+      }
     }
 
     const webHost = WEB_DOCUMENT_HOSTS.find(({ host }) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));

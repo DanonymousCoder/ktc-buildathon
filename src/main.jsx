@@ -861,6 +861,7 @@ function LeaderboardView({ settings, onOpenSettings }) {
     syncError: null,
   });
   const [status, setStatus] = useState('');
+  const [sortMode, setSortMode] = useState('daily'); // 'daily' | 'allTime'
 
   function setLeaderboardStatus(response) {
     if (response.syncStatus === 'synced' && response.source === 'backend') {
@@ -895,77 +896,157 @@ function LeaderboardView({ settings, onOpenSettings }) {
     loadLeaderboard();
   }, [settings.leaderboard.enabled, settings.leaderboard.displayName]);
 
-  const entries = leaderboard.entries || [];
-  const ownRank = entries.findIndex(entry => entry.userId === leaderboard.ownEntry?.userId) + 1;
+  const isDaily = sortMode === 'daily';
+  const getScore = (entry) => isDaily ? (entry.todaySeconds || 0) : (entry.allTimeSeconds || 0);
+  const allEntries = leaderboard.entries || [];
+  const sortedEntries = [...allEntries].sort((a, b) => getScore(b) - getScore(a));
+  const ownRank = sortedEntries.findIndex(entry => entry.userId === leaderboard.ownEntry?.userId) + 1;
+  const topThree = sortedEntries.slice(0, 3);
+  const rankedEntries = sortedEntries.slice(0, 10);
+  const weekEnd = new Date();
+  const weekStart = new Date();
+  weekStart.setDate(weekEnd.getDate() - 6);
+  const rangeLabel = `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  const topScore = Math.max(1, ...sortedEntries.map(entry => getScore(entry)));
+  const sourceLabel = leaderboard.source === 'backend' ? 'Shared' : 'Local';
+  const syncTone = leaderboard.syncStatus === 'synced' ? 'text-success' : leaderboard.syncStatus === 'offline' ? 'text-[#b45309]' : 'text-variant';
+
+  function podiumStyle(rank) {
+    if (rank === 1) return 'order-2 min-h-[138px] border-primary bg-primary text-white shadow-[0_14px_34px_rgba(0,76,202,0.22)]';
+    if (rank === 2) return 'order-1 min-h-[118px] border-[#c9d8ee] bg-white text-ink';
+    return 'order-3 min-h-[104px] border-[#d9e1ee] bg-white text-ink';
+  }
+
+  function rankBadgeStyle(rank) {
+    if (rank === 1) return 'bg-white text-primary';
+    if (rank === 2) return 'bg-[#eef4ff] text-primary';
+    if (rank === 3) return 'bg-[#f4f7fb] text-variant';
+    return 'bg-primary-soft text-primary';
+  }
 
   return (
-    <div className="px-5 py-6">
-      <section className="text-center">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-xl bg-primary-soft text-primary">
-          <TrophyIcon className="h-8 w-8" />
+    <div className="px-4 py-5">
+      <section className="overflow-hidden rounded-2xl border border-[#c9d8ee] bg-white shadow-soft">
+        <div className="bg-[#f7fbff] px-5 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-ink">Leaderboard</h2>
+            <button
+              className="rounded-lg border border-primary bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-primary transition hover:bg-primary-soft"
+              onClick={() => loadLeaderboard(true)}
+            >
+              Sync
+            </button>
+          </div>
+          {/* Daily / All-Time toggle */}
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#dce6f4] bg-white p-1">
+            <button
+              onClick={() => setSortMode('daily')}
+              className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
+                isDaily
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-variant hover:text-ink'
+              }`}
+            >
+              Daily
+            </button>
+            <button
+              onClick={() => setSortMode('allTime')}
+              className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
+                !isDaily
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-variant hover:text-ink'
+              }`}
+            >
+              All Time
+            </button>
+          </div>
         </div>
-        <h2 className="mt-4 text-2xl font-semibold text-ink">Leaderboard</h2>
-        <p className="mt-2 text-sm leading-5 text-variant">Compete with aggregate focus stats. Private document details stay local.</p>
+
+        {topThree.length ? (
+          <div className="px-4 pb-5 pt-6">
+            <div className="flex items-end justify-center gap-2">
+              {topThree.map((entry, index) => {
+                const rank = index + 1;
+                return (
+                  <article key={entry.userId || rank} className={`flex flex-1 flex-col items-center justify-end rounded-xl border p-3 text-center ${podiumStyle(rank)}`}>
+                    <div className={`mb-2 grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${rankBadgeStyle(rank)}`}>#{rank}</div>
+                    <h3 className="max-w-[88px] truncate text-sm font-semibold">{entry.displayName || 'Anonymous Reader'}</h3>
+                    <p className={rank === 1 ? 'mt-1 text-xs text-white/85' : 'mt-1 text-xs text-variant'}>{formatTime(getScore(entry))}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="px-5 py-6 text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-xl bg-primary-soft text-primary">
+              <TrophyIcon className="h-8 w-8" />
+            </div>
+            <h3 className="mt-4 text-lg font-semibold text-ink">No rankings yet</h3>
+            <p className="mt-2 text-sm leading-5 text-variant">Sync after opting in to publish aggregate focus stats.</p>
+          </div>
+        )}
       </section>
 
       {leaderboard.leaderboardEnabled && leaderboard.ownEntry ? (
-        <section className="card mt-6 p-5">
+        <section className="mt-4 rounded-2xl border border-primary bg-primary px-4 py-4 text-white shadow-soft">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-variant">Your rank</p>
-              <h3 className="mt-1 text-3xl font-semibold text-primary">#{ownRank || 1}</h3>
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-white/75">Your position</p>
+              <h3 className="mt-1 text-3xl font-semibold">#{ownRank || '-'}</h3>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium text-ink">{leaderboard.ownEntry.displayName}</p>
-              <p className="text-sm text-variant">{formatTime(leaderboard.ownEntry.todaySeconds || 0)} today</p>
+              <p className="max-w-[180px] truncate text-sm font-semibold">{leaderboard.ownEntry.displayName}</p>
+              <p className="text-xs text-white/80">{formatTime(isDaily ? (leaderboard.ownEntry.todaySeconds || 0) : (leaderboard.ownEntry.allTimeSeconds || 0))} {isDaily ? 'today' : 'all time'}</p>
             </div>
           </div>
-          <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="text-lg font-semibold text-ink">{formatTime(leaderboard.ownEntry.allTimeSeconds || 0)}</p>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-variant">All Time</p>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-center">
+            <div className="rounded-lg bg-white/12 px-2 py-3">
+              <p className="text-sm font-semibold">{formatTime(leaderboard.ownEntry.todaySeconds || 0)}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-white/70">Daily Time</p>
             </div>
-            <div>
-              <p className="text-lg font-semibold text-ink">{leaderboard.ownEntry.documentsTracked || 0}</p>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-variant">Docs</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-ink">{leaderboard.ownEntry.currentStreakDays || 0}</p>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-variant">Streak</p>
+            <div className="rounded-lg bg-white/12 px-2 py-3">
+              <p className="text-sm font-semibold">{leaderboard.ownEntry.currentStreakDays || 0}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-white/70">Streak</p>
             </div>
           </div>
         </section>
       ) : (
-        <section className="card mt-6 p-5 text-center">
-          <h3 className="text-lg font-semibold text-ink">Join the leaderboard</h3>
-          <p className="mt-2 text-sm leading-5 text-variant">Opt in from Settings to make your aggregate score available for competitions and rewards.</p>
+        <section className="card mt-4 p-5 text-center">
+          <h3 className="text-lg font-semibold text-ink">Join the competition</h3>
+          <p className="mt-2 text-sm leading-5 text-variant">Opt in from Settings to share aggregate stats and appear on the shared board.</p>
           <button className="primary-button mt-5" onClick={onOpenSettings}>Open Settings</button>
         </section>
       )}
 
-      <section className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-ink">Rankings</h3>
-          <button className="text-xs font-semibold uppercase tracking-wide text-primary" onClick={() => loadLeaderboard(true)}>Sync</button>
-        </div>
-        <div className="mb-3 rounded-lg border border-outline bg-white px-3 py-2 text-xs text-variant">
-          Source: <span className="font-semibold text-ink">{leaderboard.source === 'backend' ? 'Shared backend' : 'Local cache'}</span>
-          {settings.leaderboard.lastSyncedAt ? ` - Last sync ${formatRelativeTime(settings.leaderboard.lastSyncedAt)}` : ''}
-        </div>
-        <div className="space-y-3">
-          {entries.length ? (
-            entries.map((entry, index) => (
-              <article key={entry.userId || index} className="card flex items-center gap-4 p-4">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-soft text-sm font-semibold text-primary">
-                  #{index + 1}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="truncate text-sm font-semibold text-ink">{entry.displayName || 'Anonymous Reader'}</h4>
-                  <p className="text-xs text-variant">{formatTime(entry.todaySeconds || 0)} today - {entry.currentStreakDays || 0} day streak</p>
-                </div>
-                <p className="shrink-0 text-sm font-semibold text-primary">{formatTime(entry.allTimeSeconds || 0)}</p>
-              </article>
-            ))
+      <section className="mt-5">
+        <div className="space-y-2">
+          {rankedEntries.length ? (
+            rankedEntries.map((entry, index) => {
+              const rank = index + 1;
+              const isCurrentUser = entry.userId && entry.userId === leaderboard.ownEntry?.userId;
+              return (
+                <article
+                  key={entry.userId || index}
+                  className={`rounded-xl border bg-white p-4 shadow-soft ${isCurrentUser ? 'border-primary' : 'border-outline'}`}
+                  style={{
+                    animation: `lb-slide-up 0.35s ease both`,
+                    animationDelay: `${index * 55}ms`,
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-semibold ${rank <= 3 ? 'bg-primary text-white' : 'bg-primary-soft text-primary'}`}>
+                      #{rank}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-sm font-semibold text-ink">{entry.displayName || 'Anonymous Reader'}</h4>
+                      <p className="text-xs text-variant">{entry.currentStreakDays || 0} day streak</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-primary">{formatTime(getScore(entry))}</p>
+                  </div>
+                </article>
+              );
+            })
           ) : (
             <article className="card p-5 text-center text-sm text-variant">No leaderboard entries yet.</article>
           )}
