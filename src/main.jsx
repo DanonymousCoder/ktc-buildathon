@@ -674,24 +674,22 @@ function TrackerEmptyView() {
   return (
     <div className="flex flex-col items-center px-5 pt-6 text-center">
       {!isFileAccessAllowed && (
-        <div
+        <a
+          href={extensionSettingsUrl}
+          onClick={openFileAccessSettings}
           role="alert"
-          className="mb-5 flex w-full items-start gap-3 rounded-xl border border-[#f59e0b] bg-[#fffbeb] p-3.5 text-left text-xs leading-relaxed text-[#92400e] shadow-soft"
+          className="group mb-5 flex w-full cursor-pointer items-start gap-3 rounded-xl border border-amber-400 bg-amber-50 p-3.5 text-left text-xs leading-relaxed text-amber-950 shadow-soft transition hover:border-amber-500 hover:bg-amber-100 active:scale-[0.99]"
         >
-          <div className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#fde68a] text-[#b45309]">
+          <div className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-200 text-amber-900 transition group-hover:scale-105">
             <LockIcon className="h-3.5 w-3.5" />
           </div>
           <div className="flex-1">
-            <span>Local PDF tracking is disabled. </span>
-            <a
-              href={extensionSettingsUrl}
-              onClick={openFileAccessSettings}
-              className="font-semibold text-[#b45309] underline decoration-1 underline-offset-2 transition hover:text-[#78350f]"
-            >
-              Click here to allow file access
-            </a>
+            <span>Local PDF tracking disabled. </span>
+            <span className="font-semibold text-amber-900 underline decoration-amber-700 underline-offset-2 transition group-hover:text-amber-950">
+              Click here to allow file access.
+            </span>
           </div>
-        </div>
+        </a>
       )}
 
       <EmptyIllustration />
