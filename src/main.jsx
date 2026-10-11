@@ -643,24 +643,69 @@ function EmptyIllustration() {
 }
 
 function TrackerEmptyView() {
-  function openFileAccessSettings() {
+  const [isFileAccessAllowed, setIsFileAccessAllowed] = useState(true);
+
+  useEffect(() => {
+    function checkFileAccess() {
+      if (typeof chrome !== 'undefined' && chrome.extension?.isAllowedFileSchemeAccess) {
+        chrome.extension.isAllowedFileSchemeAccess(allowed => {
+          setIsFileAccessAllowed(Boolean(allowed));
+        });
+      }
+    }
+
+    checkFileAccess();
+    window.addEventListener('focus', checkFileAccess);
+    return () => window.removeEventListener('focus', checkFileAccess);
+  }, []);
+
+  const extensionSettingsUrl =
+    typeof chrome !== 'undefined' && chrome.runtime?.id
+      ? `chrome://extensions/?id=${chrome.runtime.id}`
+      : 'chrome://extensions';
+
+  function openFileAccessSettings(event) {
+    if (event) event.preventDefault();
     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.runtime?.id) {
-      chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` });
+      chrome.tabs.create({ url: extensionSettingsUrl });
       return;
     }
 
-    window.open('chrome://extensions', '_blank', 'noopener,noreferrer');
+    window.open(extensionSettingsUrl, '_blank', 'noopener,noreferrer');
   }
 
   return (
-    <div className="flex flex-col items-center px-5 pt-8 text-center">
+    <div className="flex flex-col items-center px-5 pt-6 text-center">
+      {!isFileAccessAllowed && (
+        <div
+          role="alert"
+          className="mb-5 flex w-full items-start gap-3 rounded-xl border border-[#f59e0b] bg-[#fffbeb] p-3.5 text-left text-xs leading-relaxed text-[#92400e] shadow-soft"
+        >
+          <div className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#fde68a] text-[#b45309]">
+            <LockIcon className="h-3.5 w-3.5" />
+          </div>
+          <div className="flex-1">
+            <span>Local PDF tracking is disabled. </span>
+            <a
+              href={extensionSettingsUrl}
+              onClick={openFileAccessSettings}
+              className="font-semibold text-[#b45309] underline decoration-1 underline-offset-2 transition hover:text-[#78350f]"
+            >
+              Click here to allow file access
+            </a>
+          </div>
+        </div>
+      )}
+
       <EmptyIllustration />
       <h2 className="mt-7 text-xl font-medium text-primary">Open a document</h2>
       <p className="mt-3 max-w-[260px] text-sm leading-5 text-variant">Tracking begins automatically when a supported document is active in your browser.</p>
       <div className="mt-7 flex items-center gap-3">
         <StatusChip>Waiting</StatusChip>
         <button onClick={openFileAccessSettings}>
-          <StatusChip active icon={<LockIcon className="h-3.5 w-3.5" />}>Local Only</StatusChip>
+          <StatusChip active={isFileAccessAllowed} icon={<LockIcon className="h-3.5 w-3.5" />}>
+            {isFileAccessAllowed ? 'Local Allowed' : 'Local Restricted'}
+          </StatusChip>
         </button>
       </div>
       <article className="card mt-9 flex w-full items-center gap-4 p-4 text-left">
