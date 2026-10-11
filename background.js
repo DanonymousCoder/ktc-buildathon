@@ -283,6 +283,16 @@ async function setDocuments(documents) {
   await setInStorage({ documents });
 }
 
+async function getStoredTrackingState() {
+  const { trackingState } = await getFromStorage(['trackingState']);
+  return trackingState || null;
+}
+
+async function getStoredActiveLegStartedAt() {
+  const storedState = await getStoredTrackingState();
+  return typeof storedState?.activeLegStartedAt === 'number' ? storedState.activeLegStartedAt : null;
+}
+
 async function getLeaderboardEntries() {
   const { leaderboard_entries } = await getFromStorage(['leaderboard_entries']);
   return Array.isArray(leaderboard_entries) ? leaderboard_entries : [];
@@ -474,6 +484,9 @@ async function ensureDocumentForTab(tab) {
 
 async function setActiveDocumentFromTab(tab) {
   if (!trackingSettings.enabled) {
+    if (isDocumentActive && activeDocumentId) {
+      await commitActiveLeg();
+    }
     isDocumentActive = false;
     activeDocumentId = null;
     activeDocumentUrl = null;
@@ -487,6 +500,9 @@ async function setActiveDocumentFromTab(tab) {
   }
 
   if (!tab || !detectDocument(tab)) {
+    if (isDocumentActive && activeDocumentId) {
+      await commitActiveLeg();
+    }
     isDocumentActive = false;
     activeDocumentId = null;
     activeDocumentUrl = null;
@@ -500,6 +516,12 @@ async function setActiveDocumentFromTab(tab) {
   }
 
   const previousDocumentId = activeDocumentId;
+  const targetDocId = getDocumentId(tab.url);
+
+  if (isDocumentActive && previousDocumentId && previousDocumentId !== targetDocId) {
+    await commitActiveLeg();
+  }
+
   isDocumentActive = true;
   await ensureDocumentForTab(tab);
   if (!trackingSettings.paused && isUserActive && (!activeLegStartedAt || previousDocumentId !== activeDocumentId)) {
@@ -592,6 +614,10 @@ async function addHeartbeatMinute() {
     return;
   }
 
+  if (!activeLegStartedAt) {
+    activeLegStartedAt = await getStoredActiveLegStartedAt();
+  }
+
   await addReadingSeconds(HEARTBEAT_SECONDS);
 }
 
@@ -601,9 +627,16 @@ async function commitActiveLeg() {
     trackingSettings.paused ||
     !isUserActive ||
     !isDocumentActive ||
-    !activeDocumentId ||
-    !activeLegStartedAt
+    !activeDocumentId
   ) {
+    return;
+  }
+
+  if (!activeLegStartedAt) {
+    activeLegStartedAt = await getStoredActiveLegStartedAt();
+  }
+
+  if (!activeLegStartedAt) {
     return;
   }
 
@@ -628,6 +661,9 @@ async function refreshRuntimeState() {
   }
 
   if (!isUserActive) {
+    if (activeLegStartedAt) {
+      await commitActiveLeg();
+    }
     activeLegStartedAt = null;
   }
 
@@ -638,10 +674,50 @@ async function initializeEngine() {
   trackingSettings = await getTrackingSettings();
   chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
   startHeartbeat();
+
+  // Restore persistent tracking state and activeLegStartedAt directly from storage
+  const storedState = await getStoredTrackingState();
+  if (storedState && storedState.status === 'tracking') {
+    if (typeof storedState.activeLegStartedAt === 'number') {
+      activeLegStartedAt = storedState.activeLegStartedAt;
+    }
+    if (storedState.currentDocumentId) {
+      activeDocumentId = storedState.currentDocumentId;
+      activeDocumentUrl = storedState.currentDocumentUrl;
+      activeDocumentTitle = storedState.currentDocumentTitle;
+      activeDocumentType = storedState.currentDocumentType;
+      activeDocumentTypeLabel = storedState.currentDocumentTypeLabel;
+      activeTabId = storedState.currentTabId;
+      isDocumentActive = Boolean(storedState.isDocumentActive);
+    }
+  }
+
   await refreshRuntimeState();
 }
 
 async function handleHeartbeatAlarm() {
+  // Read persistent settings and activeLegStartedAt directly from storage on wake up
+  const [storedSettings, storedState] = await Promise.all([
+    getTrackingSettings(),
+    getStoredTrackingState(),
+  ]);
+  trackingSettings = storedSettings;
+
+  if (storedState && storedState.status === 'tracking') {
+    if (typeof storedState.activeLegStartedAt === 'number') {
+      activeLegStartedAt = storedState.activeLegStartedAt;
+    }
+    if (storedState.currentDocumentId) {
+      activeDocumentId = storedState.currentDocumentId;
+      activeDocumentUrl = storedState.currentDocumentUrl;
+      activeDocumentTitle = storedState.currentDocumentTitle;
+      activeDocumentType = storedState.currentDocumentType;
+      activeDocumentTypeLabel = storedState.currentDocumentTypeLabel;
+      activeTabId = storedState.currentTabId;
+      isDocumentActive = Boolean(storedState.isDocumentActive);
+    }
+  }
+
   await refreshRuntimeState();
   await addHeartbeatMinute();
 }
@@ -1055,32 +1131,37 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.tabs.onRemoved.addListener(tabId => {
+chrome.tabs.onRemoved.addListener(async tabId => {
   if (tabId === activeTabId) {
-    setActiveDocumentFromTab(null);
+    await commitActiveLeg();
+    await setActiveDocumentFromTab(null);
   }
 });
 
-chrome.windows.onFocusChanged.addListener(windowId => {
+chrome.windows.onFocusChanged.addListener(async windowId => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    await commitActiveLeg();
     isDocumentActive = false;
     activeTabId = null;
     activeLegStartedAt = null;
-    publishTrackingState();
+    await publishTrackingState();
     return;
   }
 
-  checkCurrentTab();
+  await checkCurrentTab();
 });
 
-chrome.idle.onStateChanged.addListener(idleState => {
-  isUserActive = idleState === 'active';
-  if (!isUserActive) {
+chrome.idle.onStateChanged.addListener(async idleState => {
+  const nextIsUserActive = idleState === 'active';
+  if (!nextIsUserActive && isUserActive) {
+    await commitActiveLeg();
     activeLegStartedAt = null;
-  } else if (trackingSettings.enabled && !trackingSettings.paused && isDocumentActive && !activeLegStartedAt) {
+  }
+  isUserActive = nextIsUserActive;
+  if (isUserActive && trackingSettings.enabled && !trackingSettings.paused && isDocumentActive && !activeLegStartedAt) {
     activeLegStartedAt = Date.now();
   }
-  publishTrackingState();
+  await publishTrackingState();
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
