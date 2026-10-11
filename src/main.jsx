@@ -1162,6 +1162,23 @@ function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOpt
     setLeaderboardStatus(result.ok ? 'Leaderboard data downloaded.' : 'Enable leaderboard sharing first.');
   }
 
+  function exportDataBackup() {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+
+    chrome.storage.local.get(null, data => {
+      const jsonString = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `FlowTrakka_Backup_${getTodayKey()}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    });
+  }
+
   return (
     <div className="px-5 py-6">
       <section>
@@ -1241,9 +1258,9 @@ function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOpt
               <p className="text-sm leading-5 text-variant">Your data never leaves this browser. All processing is local.</p>
             </div>
           </div>
-          <button className="secondary-button mt-6 w-full" onClick={exportTrackingData}>
+          <button className="secondary-button mt-6 w-full" onClick={exportDataBackup}>
             <DownloadIcon className="h-4 w-4" />
-            Export Data
+            Export Backup (.json)
           </button>
         </div>
       </section>
