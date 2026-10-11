@@ -464,8 +464,10 @@ async function ensureDocumentForTab(tab) {
     });
     await setDocuments(documents);
   } else {
+    const updatedTitle = title && !title.startsWith('Unknown ') && title !== 'Google Drive' ? title : (documents[documentId].title || title);
     documents[documentId] = {
       ...documents[documentId],
+      title: updatedTitle,
       type: documents[documentId].type || documentInfo?.type || 'document',
       type_label: documents[documentId].type_label || documentInfo?.label || 'Document',
       family: documents[documentId].family || documentInfo?.family || 'document',
@@ -1125,6 +1127,11 @@ chrome.tabs.onActivated.addListener(() => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.title && tab.active) {
+    checkCurrentTab();
+    return;
+  }
+
   if (changeInfo.status !== 'complete' && !changeInfo.url) return;
   if (tab.active) {
     checkCurrentTab();

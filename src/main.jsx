@@ -117,11 +117,13 @@ function normalizeTrackingSnapshot(snapshot = {}) {
     })
     .sort((a, b) => (b.lastReadAt || '').localeCompare(a.lastReadAt || ''));
 
-  const totalSeconds = (todayLog?.total_seconds || 0) + elapsedLegSeconds;
+  const baseSeconds = todayLog?.total_seconds || 0;
+  const totalSeconds = baseSeconds + elapsedLegSeconds;
 
   return {
     state,
     daily: {
+      baseSeconds,
       totalSeconds,
       documentsOpened: documentEntries.length,
       pdfsOpened: documentEntries.length,
@@ -260,32 +262,27 @@ function requestLeaderboardSync() {
   return sendRuntimeAction(MESSAGE_ACTIONS.SYNC_LEADERBOARD);
 }
 
-function useExactLiveSeconds(state, fallbackSeconds) {
-  const [seconds, setSeconds] = useState(fallbackSeconds || 0);
+function useExactLiveSeconds(baseSeconds = 0, activeLegStartedAt = null) {
+  function calculateCurrentSeconds() {
+    const base = Number(baseSeconds) || 0;
+    if (!activeLegStartedAt) return base;
+    const elapsed = Math.max(0, Math.floor((Date.now() - activeLegStartedAt) / 1000));
+    return base + elapsed;
+  }
+
+  const [seconds, setSeconds] = useState(calculateCurrentSeconds);
 
   useEffect(() => {
-    setSeconds(fallbackSeconds || 0);
-  }, [fallbackSeconds]);
+    setSeconds(calculateCurrentSeconds());
 
-  useEffect(() => {
-    if (state.status !== 'tracking') return undefined;
+    if (!activeLegStartedAt) return undefined;
 
-    let isMounted = true;
+    const id = setInterval(() => {
+      setSeconds(calculateCurrentSeconds());
+    }, 1000);
 
-    async function tick() {
-      const snapshot = await readTrackingSnapshotFromStorage();
-      if (!isMounted) return;
-      const normalized = normalizeTrackingSnapshot(snapshot);
-      setSeconds(normalized.daily.totalSeconds || 0);
-    }
-
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => {
-      isMounted = false;
-      clearInterval(id);
-    };
-  }, [state.status, state.currentDocumentId, state.activeLegStartedAt]);
+    return () => clearInterval(id);
+  }, [baseSeconds, activeLegStartedAt]);
 
   return seconds;
 }
@@ -726,7 +723,8 @@ function TrackerEmptyView() {
 }
 
 function TrackerActiveView({ state, daily, sessions, onPause, onResume, onStopAndSave, onViewLogs }) {
-  const liveSeconds = useExactLiveSeconds(state, daily.totalSeconds || 0);
+  const baseSeconds = daily.baseSeconds ?? (daily.totalSeconds || 0);
+  const liveSeconds = useExactLiveSeconds(baseSeconds, state.activeLegStartedAt);
   const currentTypeLabel = state.currentDocumentTypeLabel || 'Document';
   const currentTitle = state.currentDocumentTitle || state.currentPdfTitle || sessions[0]?.documentTitle || sessions[0]?.pdfTitle || 'Current document';
   const trackingRunning = Boolean((state.isDocumentActive || state.isPdfActive || state.status === 'tracking') && state.isUserActive !== false);
