@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Component, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -1392,8 +1392,107 @@ function App() {
   );
 }
 
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[FlowTrakka] UI Error Boundary caught an error:', error, errorInfo);
+  }
+
+  handleResetData = () => {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.clear(() => {
+        window.location.reload();
+      });
+    } else {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-[600px] w-[400px] flex-col items-center justify-center bg-surface px-6 py-8 text-center text-ink dark:bg-slate-900 dark:text-slate-100">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-red-100 text-danger dark:bg-red-950/60 dark:text-red-400">
+            <svg
+              className="h-8 w-8"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+
+          <h2 className="mt-5 text-xl font-bold tracking-tight text-ink dark:text-white">
+            Something went wrong
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-variant dark:text-slate-400">
+            FlowTrakka encountered an unexpected issue. Local session data may be corrupted or out of sync.
+          </p>
+
+          {this.state.error?.message && (
+            <div className="mt-4 max-h-24 w-full overflow-y-auto rounded-lg border border-outline/50 bg-slate-100 p-2.5 text-left font-mono text-[11px] text-variant dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+              {this.state.error.message}
+            </div>
+          )}
+
+          <div className="mt-6 flex w-full flex-col gap-3">
+            <button
+              type="button"
+              onClick={this.handleResetData}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-danger px-4 text-sm font-semibold text-white shadow-soft transition hover:bg-red-700 active:scale-[0.99] dark:bg-red-600 dark:hover:bg-red-700"
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+              Reset Session Data
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="flex h-11 w-full items-center justify-center rounded-lg border border-outline bg-white px-4 text-sm font-medium text-ink transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
+            >
+              Try Reloading Popup
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
