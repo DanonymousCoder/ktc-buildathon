@@ -4,42 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="flowtrakka-api-base" content="https://flowtrakka-leaderboard.flowtrakka.workers.dev" />
-    <meta
-      name="description"
-      content="FlowTrakka automatically measures focused document reading time across PDFs, slides, docs, and sheets in Chrome."
-    />
-    <title>FlowTrakka - Document Focus Tracker</title>
+    <meta name="description" content="FlowTrakka is an offline PDF reader that measures the time you actually read. Private by default, with a web app and a Chrome extension." />
+    <meta property="og:title" content="FlowTrakka: the offline PDF reader that measures your real reading time" />
+    <meta property="og:description" content="FlowTrakka is an offline PDF reader that measures the time you actually read. Private by default, with a web app and a Chrome extension." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#1d4ed8" />
+    <title>FlowTrakka: the offline PDF reader that measures your real reading time</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./landing.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <nav class="header-nav" aria-label="Primary navigation">
         <a class="brand" href="#top" aria-label="FlowTrakka home">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="13" r="8"></circle>
-            <path d="M12 9v5l3 2"></path>
-            <path d="M9 2h6"></path>
-            <path d="M12 2v3"></path>
-          </svg>
-        </span>
-        <span>FlowTrakka</span>
+          <span class="brand-mark" aria-hidden="true"><svg class="mark" viewBox="88 104 336 304" fill="none">
+            <rect x="108" y="124" width="296" height="56" rx="28" fill="currentColor"></rect>
+            <rect x="108" y="228" width="176" height="56" rx="28" fill="currentColor"></rect>
+            <circle cx="344" cy="256" r="36" fill="#34d399"></circle>
+            <rect x="108" y="332" width="236" height="56" rx="28" fill="currentColor" fill-opacity=".3"></rect>
+          </svg></span>
+          <span>FlowTrakka</span>
         </a>
         <div class="top-nav">
-        <a href="#features">Features</a>
-        <a href="#about">About</a>
+          <a href="#how">How it works</a>
+          <a href="#ways">Web app &amp; extension</a>
+          <a href="#faq">FAQ</a>
         </div>
         <div class="header-actions">
-        <a class="header-action header-action-secondary" href="./privacy.html">Privacy</a>
-        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+          <a class="header-action header-action-secondary" href="./privacy.html">Privacy</a>
+          <a class="header-action" href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Open the web app</a>
         </div>
         <button class="menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-menu">
-        <span></span>
-        <span></span>
-        <span></span>
+          <span></span><span></span><span></span>
         </button>
       </nav>
     </header>
@@ -48,189 +49,152 @@
     <aside class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation" aria-hidden="true" inert>
       <div class="mobile-menu-header">
         <span class="mobile-menu-title">Menu</span>
-        <button class="menu-close" type="button" aria-label="Close navigation menu">
-          <span></span>
-          <span></span>
-        </button>
+        <button class="menu-close" type="button" aria-label="Close navigation menu"><span></span><span></span></button>
       </div>
       <div class="mobile-menu-links">
-        <a href="#features">Features</a>
-        <a href="#about">About</a>
+        <a href="#how">How it works</a>
+        <a href="#ways">Web app &amp; extension</a>
+        <a href="#faq">FAQ</a>
         <a href="./privacy.html">Privacy</a>
       </div>
-      <div class="mobile-menu-footer">
-        <a class="header-action header-action-secondary" href="./privacy.html">Privacy Policy</a>
-        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+      <div class="mobile-menu-actions">
+        <a class="header-action" href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Open the web app</a>
       </div>
     </aside>
 
-    <main id="top">
-      <section class="hero" aria-labelledby="hero-title">
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> Built for focused reading</p>
-          <h1 id="hero-title">Your Reading Time, <strong>Finally Measured.</strong></h1>
+          <p class="eyebrow"><span></span> Offline PDF reader and reading timer</p>
+          <h1 id="hero-title">Your reading time, <strong>finally measured.</strong></h1>
           <p class="hero-text">
-            FlowTrakka tracks active document focus time in Chrome, giving students and researchers a clear record of deep work without manual timers or guesswork.
+            FlowTrakka is a PDF reader that counts the time you actually spend reading, not the time a tab stayed open. It works offline and keeps your files on your device.
           </p>
-          <form class="waitlist-form" id="waitlist" data-waitlist-form data-waitlist-source="hero" aria-label="Join the FlowTrakka waitlist">
-            <label class="sr-only" for="email">Academic email</label>
-            <input id="email" name="email" type="email" placeholder="Enter your email" autocomplete="email" />
-            <button type="submit">Get Started</button>
-          </form>
-          <p class="form-note" id="form-note" role="status" aria-live="polite"></p>
+          <div class="cta-row">
+            <a class="btn-primary" href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Open the web app</a>
+            <a class="btn-secondary" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Add the Chrome extension</a>
+          </div>
           <ul class="trust-list" aria-label="Product attributes">
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
-                <rect x="5" y="11" width="14" height="10" rx="2"></rect>
-              </svg>
-              Chrome Extension
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <path d="M9 12l2 2 4-5"></path>
-              </svg>
-              Privacy First
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7h16"></path>
-                <path d="M4 12h16"></path>
-                <path d="M4 17h16"></path>
-              </svg>
-              Local Storage
-            </li>
+            <li><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Works offline</li>
+            <li><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>PDFs stay on your device</li>
+            <li><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Sign-in is optional</li>
           </ul>
         </div>
         <div class="hero-media" aria-hidden="true">
-          <div class="hero-panel hero-panel-top">
-            <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
-          </div>
-          <div class="hero-panel hero-panel-bottom">
-            <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
-          </div>
-          <div class="hero-panel hero-panel-tall">
-            <img src="../landing-assets/flowtrakka-hero.svg" alt="" />
+          <div class="hero-panel hero-panel-brand">
+            <svg class="hero-mark" viewBox="88 104 336 304" fill="none">
+              <rect x="108" y="124" width="296" height="56" rx="28" fill="#f8fafc"></rect>
+              <rect x="108" y="228" width="176" height="56" rx="28" fill="#f8fafc"></rect>
+              <circle cx="344" cy="256" r="36" fill="#34d399"></circle>
+              <rect x="108" y="332" width="236" height="56" rx="28" fill="#f8fafc" fill-opacity=".3"></rect>
+            </svg>
+            <div class="timer-card">
+              <p class="timer-label"><span></span> Reading now</p>
+              <p class="timer-clock">00:24:18</p>
+              <div class="timer-bar"><i></i></div>
+              <div class="timer-meta"><span>Today</span><b>1h 12m</b></div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="intro" id="about" aria-labelledby="intro-title">
-        <h2 id="intro-title">Silent. Smart. Secure.</h2>
-        <p>Designed specifically for focused students and researchers. No noisy gamification, no manual timers, and no document contents leaving your browser.</p>
+      <section class="v2-section" id="how" aria-labelledby="how-title">
+        <p class="v2-kicker">How it works</p>
+        <h2 id="how-title" class="v2-title">Open a PDF. Read. See your real time.</h2>
+        <ol class="steps">
+          <li><span class="step-num">1</span><h3>Add a PDF</h3><p>Import a PDF from your device. It is stored on your device and opens without a connection.</p></li>
+          <li><span class="step-num">2</span><h3>Just read</h3><p>A quiet timer counts only the time you are actively reading. It pauses when you switch tabs, leave the window, or go idle for 30 seconds.</p></li>
+          <li><span class="step-num">3</span><h3>See what you really read</h3><p>Set a daily goal, build streaks, and look back at the hours you actually put in.</p></li>
+        </ol>
       </section>
 
-      <section class="features-section" id="features" aria-labelledby="features-title">
-        <div class="features-heading">
-          <p class="section-kicker">How FlowTrakka works</p>
-          <h2 id="features-title">One quiet system for every focused session.</h2>
-          <p>Select a capability to see how FlowTrakka turns browser activity into a useful, privacy-first study record.</p>
+      <section class="v2-section v2-alt" id="features" aria-labelledby="features-title">
+        <p class="v2-kicker">Why FlowTrakka</p>
+        <h2 id="features-title" class="v2-title">Built for people who read to learn.</h2>
+        <div class="cards">
+          <article class="v2-card"><h3>An offline-first reader</h3><p>Open your PDFs anywhere, with or without internet. Install it to your home screen like an app.</p></article>
+          <article class="v2-card"><h3>Honest reading time</h3><p>No manual timers, and no inflated hours from a forgotten tab. If you stepped away, the clock stopped.</p></article>
+          <article class="v2-card"><h3>Streaks, and a leaderboard if you want one</h3><p>Streaks keep you consistent. Sign in only if you want to sync your time and join the shared board.</p></article>
         </div>
+      </section>
 
-        <div class="feature-orbit">
-          <div class="orbit-ring orbit-ring-outer" aria-hidden="true"></div>
-          <div class="orbit-ring orbit-ring-inner" aria-hidden="true"></div>
-
-          <button class="orbit-node orbit-node-top is-active" type="button" data-feature="tracking" aria-pressed="true">
-            <span class="orbit-node-icon">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="8"></circle>
-                <path d="M12 8v5l3 2"></path>
-              </svg>
-            </span>
-            <span>Automatic Tracking</span>
-          </button>
-
-          <button class="orbit-node orbit-node-right" type="button" data-feature="detection" aria-pressed="false">
-            <span class="orbit-node-icon">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
-                <circle cx="12" cy="12" r="4"></circle>
-              </svg>
-            </span>
-            <span>Smart Detection</span>
-          </button>
-
-          <button class="orbit-node orbit-node-bottom" type="button" data-feature="privacy" aria-pressed="false">
-            <span class="orbit-node-icon">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                <path d="M9 12l2 2 4-5"></path>
-              </svg>
-            </span>
-            <span>Privacy First</span>
-          </button>
-
-          <button class="orbit-node orbit-node-left" type="button" data-feature="students" aria-pressed="false">
-            <span class="orbit-node-icon">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 3 2 8l10 5 10-5-10-5z"></path>
-                <path d="M6 11v5c3 3 9 3 12 0v-5"></path>
-              </svg>
-            </span>
-            <span>Built for Students</span>
-          </button>
-
-          <article class="orbit-detail" aria-live="polite">
-            <div class="orbit-detail-meta">
-              <span class="orbit-status">Core capability</span>
-              <span class="orbit-index">01 / 04</span>
-            </div>
-            <h3>Automatic Tracking</h3>
-            <p>FlowTrakka detects supported PDFs, slides, docs, and sheets, then measures active focus time quietly in the background.</p>
-            <div class="orbit-signal">
-              <span>Session confidence</span>
-              <strong>Live</strong>
-            </div>
-            <div class="orbit-meter" aria-hidden="true"><span></span></div>
-            <ul class="orbit-points">
-              <li>Active-tab aware</li>
-              <li>No manual timer</li>
-            </ul>
+      <section class="v2-section" id="ways" aria-labelledby="ways-title">
+        <p class="v2-kicker">Two ways to use it</p>
+        <h2 id="ways-title" class="v2-title">Read in the app, or track in Chrome.</h2>
+        <div class="ways">
+          <article class="v2-card way">
+            <h3>Web app</h3>
+            <p>Read PDFs inside FlowTrakka. Works offline, installs to your home screen, and keeps your library on your device.</p>
+            <a class="btn-primary" href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Open the web app</a>
           </article>
+          <article class="v2-card way">
+            <h3>Chrome extension</h3>
+            <p>Measures focused time on PDFs, slides, docs, and sheets as you browse. Already use it? Import your backup into the web app.</p>
+            <a class="btn-secondary" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Add the Chrome extension</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="v2-privacy" aria-labelledby="privacy-title">
+        <div>
+          <p class="v2-kicker">Privacy</p>
+          <h2 id="privacy-title" class="v2-title left">Your PDFs stay on your device.</h2>
+          <p>FlowTrakka never uploads your files. If you choose to sign in and sync, we store your reading times and document titles, not the documents. <a href="./privacy.html">Read the full privacy policy</a>.</p>
+        </div>
+      </section>
+
+      <section class="v2-mobile" id="mobile" aria-labelledby="mobile-title">
+        <div>
+          <h2 id="mobile-title">Coming to mobile<span class="dot"></span></h2>
+          <p>Until then, add the web app to your home screen. Want to know when the mobile app lands?</p>
+        </div>
+        <div class="mobile-signup">
+          <form class="waitlist-form" data-waitlist-form data-waitlist-source="mobile" data-success="You are on the list. We will email you when mobile launches." aria-label="Get notified when FlowTrakka launches on mobile">
+            <label class="sr-only" for="mobile-email">Email</label>
+            <input id="mobile-email" name="email" type="email" placeholder="Enter your email" autocomplete="email" />
+            <button type="submit">Notify me</button>
+          </form>
+          <p class="form-note" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="v2-section" id="faq" aria-labelledby="faq-title">
+        <p class="v2-kicker">FAQ</p>
+        <h2 id="faq-title" class="v2-title">Questions, answered.</h2>
+        <div class="faq">
+          <details><summary>Does FlowTrakka upload my PDFs?</summary><p>No. Your PDFs are stored in your browser on your device. If you sign in and sync, only reading times and document titles are sent.</p></details>
+          <details><summary>Does it work offline?</summary><p>Yes. After the first load, you can open your library and read without a connection. Your time syncs later if you are signed in.</p></details>
+          <details><summary>Do I need an account?</summary><p>No. You can read and track time without signing in. Sign in with Google only if you want to sync your time or appear on the leaderboard.</p></details>
+          <details><summary>How does it know I am reading?</summary><p>It counts time while the reader is open and you are active. It pauses when you switch tabs, leave the window, or are idle for 30 seconds.</p></details>
+          <details><summary>Can I bring my history from the Chrome extension?</summary><p>Yes. Export a backup from the extension and import it in the web app. Importing the same file twice will not double your hours.</p></details>
+          <details><summary>Is there a mobile app?</summary><p>Not yet. It is coming. For now, add the web app to your home screen from your phone browser.</p></details>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
       <div class="footer-inner">
-        <a class="footer-brand" href="#top" aria-label="FlowTrakka home">
-          <span class="footer-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="13" r="8"></circle>
-              <path d="M12 9v5l3 2"></path>
-              <path d="M9 2h6"></path>
-              <path d="M12 2v3"></path>
-            </svg>
-          </span>
+        <a class="footer-brand" href="./index.html" aria-label="FlowTrakka home">
+          <span class="footer-brand-mark" aria-hidden="true"><svg class="mark" viewBox="88 104 336 304" fill="none">
+            <rect x="108" y="124" width="296" height="56" rx="28" fill="currentColor"></rect>
+            <rect x="108" y="228" width="176" height="56" rx="28" fill="currentColor"></rect>
+            <circle cx="344" cy="256" r="36" fill="#34d399"></circle>
+            <rect x="108" y="332" width="236" height="56" rx="28" fill="currentColor" fill-opacity=".3"></rect>
+          </svg></span>
           <span>FlowTrakka</span>
         </a>
-
         <nav class="footer-nav" aria-label="Footer navigation">
-          <a href="#top">Home</a>
-          <a href="#about">About</a>
-          <a href="#features">Features</a>
+          <a href="./index.html#how">How it works</a>
+          <a href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Web app</a>
+          <a href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Chrome extension</a>
           <a href="./privacy.html">Privacy</a>
         </nav>
-
-        <div class="footer-signup">
-          <p>Quiet updates for focused readers.</p>
-          <form class="footer-form" data-waitlist-form data-waitlist-source="footer" aria-label="Join the FlowTrakka waitlist from the footer">
-            <label class="sr-only" for="footer-email">Academic email</label>
-            <input id="footer-email" name="email" type="email" placeholder="Enter your email" autocomplete="email" />
-            <button type="submit">Get Started</button>
-          </form>
-          <p class="footer-form-note" role="status" aria-live="polite"></p>
-        </div>
-
         <div class="footer-bottom">
           <span>Copyright © 2026 FlowTrakka. All rights reserved.</span>
           <span>Designed for focus, built for privacy.</span>
         </div>
       </div>
     </footer>
-
     <script src="./landing.js"></script>
   </body>
 </html>

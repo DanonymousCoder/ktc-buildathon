@@ -9,7 +9,7 @@
 
   body {
     margin: 0;
-    background: #f7f9fb;
+    background: #f8fafc;
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
@@ -29,7 +29,7 @@
   }
 
   .primary-button {
-    @apply flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-base font-semibold text-white shadow-soft transition hover:bg-[#003da3];
+    @apply flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-base font-semibold text-white shadow-soft transition hover:bg-[#1e40af];
   }
 
   .secondary-button {

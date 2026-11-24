@@ -1,6 +1,5 @@
 const waitlistForms = document.querySelectorAll('[data-waitlist-form]');
 const apiBase = document.querySelector('meta[name="flowtrakka-api-base"]')?.content?.replace(/\/$/, '');
-const chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka';
 const menuButton = document.querySelector('.menu-button');
 const mobileMenu = document.querySelector('.mobile-menu');
 const menuOverlay = document.querySelector('.menu-overlay');
@@ -81,64 +80,6 @@ function initializeScrollReveals() {
 
 initializeScrollReveals();
 
-const featureContent = {
-  tracking: {
-    index: '01 / 04',
-    title: 'Automatic Tracking',
-    description: 'FlowTrakka detects supported PDFs, slides, docs, and sheets, then measures active focus time quietly in the background.',
-    signal: 'Live',
-    meter: '92%',
-    points: ['Active-tab aware', 'No manual timer'],
-  },
-  detection: {
-    index: '02 / 04',
-    title: 'Smart Detection',
-    description: 'Tab focus, browser activity, idle state, and document type work together so forgotten tabs never inflate your study record.',
-    signal: '4 signals',
-    meter: '78%',
-    points: ['Idle-state aware', 'Distraction resistant'],
-  },
-  privacy: {
-    index: '03 / 04',
-    title: 'Privacy First',
-    description: 'Your tracking history stays in local Chrome storage by default. Leaderboard sharing remains optional and aggregate-only.',
-    signal: 'Local',
-    meter: '100%',
-    points: ['Content never read', 'Sharing is opt-in'],
-  },
-  students: {
-    index: '04 / 04',
-    title: 'Built for Students',
-    description: 'Review daily patterns, export your own logs, and compare aggregate progress without turning focused work into noisy gamification.',
-    signal: 'Ready',
-    meter: '86%',
-    points: ['Exportable records', 'Academic workflow'],
-  },
-};
-
-const featureNodes = document.querySelectorAll('.orbit-node');
-const featureDetail = document.querySelector('.orbit-detail');
-
-featureNodes.forEach(node => {
-  node.addEventListener('click', () => {
-    const feature = featureContent[node.dataset.feature];
-    if (!feature || !featureDetail) return;
-
-    featureNodes.forEach(item => {
-      const active = item === node;
-      item.classList.toggle('is-active', active);
-      item.setAttribute('aria-pressed', String(active));
-    });
-
-    featureDetail.querySelector('.orbit-index').textContent = feature.index;
-    featureDetail.querySelector('h3').textContent = feature.title;
-    featureDetail.querySelector('p').textContent = feature.description;
-    featureDetail.querySelector('.orbit-signal strong').textContent = feature.signal;
-    featureDetail.querySelector('.orbit-meter span').style.width = feature.meter;
-    featureDetail.querySelector('.orbit-points').innerHTML = feature.points.map(point => `<li>${point}</li>`).join('');
-  });
-});
-
 waitlistForms.forEach(form => {
   form.addEventListener('submit', async event => {
     event.preventDefault();
@@ -146,7 +87,7 @@ waitlistForms.forEach(form => {
     const email = String(data.get('email') || '').trim();
     const note = form.parentElement.querySelector('[role="status"]');
     const button = form.querySelector('button[type="submit"]');
-    const originalButtonText = button?.textContent || 'Get Started';
+    const originalButtonText = button?.textContent || 'Notify me';
 
     note?.classList.remove('is-error');
 
@@ -184,9 +125,9 @@ waitlistForms.forEach(form => {
         throw new Error(result.error || 'waitlist_subscription_failed');
       }
 
-      if (note) note.textContent = 'You are on the list. FlowTrakka will keep it quiet until launch.';
+      if (note) note.textContent = form.dataset.success || 'You are on the list. We will keep you posted.';
       form.reset();
-      window.location.assign(chromeWebStoreUrl);
+      if (form.dataset.redirect) window.location.assign(form.dataset.redirect);
     } catch {
       note?.classList.add('is-error');
       if (note) note.textContent = 'We could not save your email. Please try again.';

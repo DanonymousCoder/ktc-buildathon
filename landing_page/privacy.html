@@ -4,39 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="flowtrakka-api-base" content="https://flowtrakka-leaderboard.flowtrakka.workers.dev" />
-    <meta name="description" content="FlowTrakka privacy policy." />
-    <title>Privacy Policy - FlowTrakka</title>
+    <meta name="description" content="How FlowTrakka's web app and Chrome extension handle your data." />
+    <meta property="og:title" content="Privacy Policy | FlowTrakka" />
+    <meta property="og:description" content="How FlowTrakka's web app and Chrome extension handle your data." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#1d4ed8" />
+    <title>Privacy Policy | FlowTrakka</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./landing.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <nav class="header-nav" aria-label="Primary navigation">
         <a class="brand" href="./index.html" aria-label="FlowTrakka home">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="13" r="8"></circle>
-            <path d="M12 9v5l3 2"></path>
-            <path d="M9 2h6"></path>
-            <path d="M12 2v3"></path>
-          </svg>
-        </span>
-        <span>FlowTrakka</span>
+          <span class="brand-mark" aria-hidden="true"><svg class="mark" viewBox="88 104 336 304" fill="none">
+            <rect x="108" y="124" width="296" height="56" rx="28" fill="currentColor"></rect>
+            <rect x="108" y="228" width="176" height="56" rx="28" fill="currentColor"></rect>
+            <circle cx="344" cy="256" r="36" fill="#34d399"></circle>
+            <rect x="108" y="332" width="236" height="56" rx="28" fill="currentColor" fill-opacity=".3"></rect>
+          </svg></span>
+          <span>FlowTrakka</span>
         </a>
-      <div class="top-nav">
-        <a href="./index.html#features">Features</a>
-        <a href="./index.html#about">About</a>
-      </div>
-      <div class="header-actions">
-        <a class="header-action header-action-secondary" href="./index.html">Home</a>
-        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+        <div class="top-nav">
+          <a href="./index.html#how">How it works</a>
+          <a href="./index.html#ways">Web app &amp; extension</a>
+          <a href="./index.html#faq">FAQ</a>
+        </div>
+        <div class="header-actions">
+          <a class="header-action header-action-secondary" href="./privacy.html">Privacy</a>
+          <a class="header-action" href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Open the web app</a>
         </div>
         <button class="menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-menu">
-        <span></span>
-        <span></span>
-        <span></span>
+          <span></span><span></span><span></span>
         </button>
       </nav>
     </header>
@@ -45,51 +49,57 @@
     <aside class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation" aria-hidden="true" inert>
       <div class="mobile-menu-header">
         <span class="mobile-menu-title">Menu</span>
-        <button class="menu-close" type="button" aria-label="Close navigation menu">
-          <span></span>
-          <span></span>
-        </button>
+        <button class="menu-close" type="button" aria-label="Close navigation menu"><span></span><span></span></button>
       </div>
       <div class="mobile-menu-links">
-        <a href="./index.html#features">Features</a>
-        <a href="./index.html#about">About</a>
-        <a href="./privacy.html" aria-current="page">Privacy</a>
+        <a href="./index.html#how">How it works</a>
+        <a href="./index.html#ways">Web app &amp; extension</a>
+        <a href="./index.html#faq">FAQ</a>
+        <a href="./privacy.html">Privacy</a>
       </div>
-      <div class="mobile-menu-footer">
-        <a class="header-action header-action-secondary" href="./index.html">Home</a>
-        <a class="header-action" href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Get Started</a>
+      <div class="mobile-menu-actions">
+        <a class="header-action" href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Open the web app</a>
       </div>
     </aside>
 
-    <main class="privacy-page">
+    <main class="privacy-page" id="main">
       <section class="privacy-hero">
         <p class="eyebrow"><span></span> Privacy Policy</p>
-        <h1>Simple, local-first tracking.</h1>
-        <p>FlowTrakka measures focused document activity without reading your document contents. Leaderboard sharing is optional and aggregate-only.</p>
-        <p class="privacy-date">Effective date: July 22, 2026</p>
+        <h1>Your reading stays yours.</h1>
+        <p>FlowTrakka measures reading time without reading your documents. Here is exactly what stays on your device and what is sent when you choose to sync.</p>
+        <p class="privacy-date">Effective date: November 24, 2026</p>
       </section>
 
       <section class="privacy-card">
-        <h2>What FlowTrakka Stores</h2>
-        <p>FlowTrakka stores tracking settings, daily focus totals, document type metadata, last-read timestamps, and optional leaderboard preferences locally in your browser.</p>
+        <h2>Summary</h2>
+        <p>FlowTrakka has two parts: a web app and a Chrome extension. Both keep your tracking data on your device by default. Syncing and the leaderboard are optional, and we never receive your document files or their contents.</p>
 
-        <h2>What FlowTrakka Does Not Store</h2>
-        <p>FlowTrakka does not store document contents, keystrokes, unrelated browsing history, document titles in leaderboard payloads, document URLs in leaderboard payloads, or raw session history in leaderboard payloads.</p>
+        <h2>Web app: what stays on your device</h2>
+        <p>Your imported PDFs, your library, your reading sessions, your daily goal and your settings are stored in your browser on your device. You can delete a document from the app, export a backup, or clear the site's data in your browser to remove everything.</p>
 
-        <h2>Local Storage</h2>
-        <p>By default, tracking data stays on your device using Chrome local extension storage. You can export your own data from the extension settings. Waitlist emails are not stored in browser local storage.</p>
+        <h2>Web app: if you sign in and sync</h2>
+        <p>Signing in is optional and uses your Google account. When you sign in, we store your Google account identifier, email address, display name and profile picture URL. When your device syncs, we receive for each reading session: the start and end time, the duration, the platform, the highest page reached, and the document's title and a hash of the document. We do not receive the PDF file or its text. Your display name and totals appear on the leaderboard.</p>
 
-        <h2>Waitlist Emails</h2>
-        <p>If you submit an email through a FlowTrakka website form, the address is sent to the FlowTrakka backend and stored in a durable database for launch and product availability updates. Duplicate submissions update the existing subscriber record.</p>
+        <h2>Web app: anonymous usage counts</h2>
+        <p>To count installs and visitors, the web app generates a random device identifier in your browser and sends it once per day when you open the app, and once when the app is installed. The request also says whether the app is running as an installed app, and the time. This identifier is not linked to your account, email or documents, and we do not store your IP address with it. If your browser's Do Not Track setting is on, the app does not send it.</p>
 
-        <h2>Leaderboard Sharing</h2>
-        <p>Leaderboard sharing is disabled by default. If you opt in, FlowTrakka may send aggregate stats to the configured leaderboard backend, such as display name, user ID, focus totals, streak, document count, and document-type totals.</p>
+        <h2>Chrome extension</h2>
+        <p>The extension stores tracking settings, daily focus totals, document type metadata, last-read timestamps and optional leaderboard preferences in Chrome's local extension storage. It does not store document contents, keystrokes or unrelated browsing history. Leaderboard sharing is off by default; if you opt in, it may send aggregate stats such as display name, user ID, focus totals, streak, document count and document-type totals. It does not send document titles, URLs or raw session history in those payloads.</p>
 
-        <h2>Chrome Permissions</h2>
-        <p>FlowTrakka uses storage, tabs, idle, alarms, and configured leaderboard backend host access to detect supported document activity, avoid counting idle time, update focus totals, and sync opt-in aggregate rankings.</p>
+        <h2>Chrome permissions</h2>
+        <p>The extension uses storage, tabs, idle and alarms to detect supported document activity, avoid counting idle time and update focus totals, plus access to the configured leaderboard backend to sync opt-in rankings. It does not execute remotely hosted code.</p>
 
-        <h2>Remote Code</h2>
-        <p>FlowTrakka does not execute remotely hosted code. Extension code is packaged with the installed extension.</p>
+        <h2>Email list</h2>
+        <p>If you submit your email through a form on this website, for example to be told when the mobile app launches, the address is sent to the FlowTrakka backend and stored to send you product availability updates. Submitting the same address again updates the existing record.</p>
+
+        <h2>Who processes your data</h2>
+        <p>The web app is hosted on Vercel. The sync, leaderboard and email-list services run on Cloudflare. They process requests technically to deliver the service.</p>
+
+        <h2>Your choices and deleting data</h2>
+        <p>You can use the app without signing in. You can export your data, delete documents, and clear local data at any time. To ask us to delete synced account data or your email-list entry, contact us using the details below.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>If we change what we collect, we will update this page and its effective date.</p>
 
         <h2>Contact</h2>
         <p>For privacy questions, contact the FlowTrakka publisher through the contact email listed on the Chrome Web Store publisher profile.</p>
@@ -99,34 +109,20 @@
     <footer class="site-footer">
       <div class="footer-inner">
         <a class="footer-brand" href="./index.html" aria-label="FlowTrakka home">
-          <span class="footer-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="13" r="8"></circle>
-              <path d="M12 9v5l3 2"></path>
-              <path d="M9 2h6"></path>
-              <path d="M12 2v3"></path>
-            </svg>
-          </span>
+          <span class="footer-brand-mark" aria-hidden="true"><svg class="mark" viewBox="88 104 336 304" fill="none">
+            <rect x="108" y="124" width="296" height="56" rx="28" fill="currentColor"></rect>
+            <rect x="108" y="228" width="176" height="56" rx="28" fill="currentColor"></rect>
+            <circle cx="344" cy="256" r="36" fill="#34d399"></circle>
+            <rect x="108" y="332" width="236" height="56" rx="28" fill="currentColor" fill-opacity=".3"></rect>
+          </svg></span>
           <span>FlowTrakka</span>
         </a>
-
         <nav class="footer-nav" aria-label="Footer navigation">
-          <a href="./index.html">Home</a>
-          <a href="./index.html#about">About</a>
-          <a href="./index.html#features">Features</a>
-          <a href="./privacy.html" aria-current="page">Privacy</a>
+          <a href="./index.html#how">How it works</a>
+          <a href="https://flowtrakka-pwa.vercel.app" target="_blank" rel="noreferrer">Web app</a>
+          <a href="https://chromewebstore.google.com/detail/flowtrakka-document-focus/bhbljihknmkdfmijnlhhodhngiibagka" target="_blank" rel="noreferrer">Chrome extension</a>
+          <a href="./privacy.html">Privacy</a>
         </nav>
-
-        <div class="footer-signup">
-          <p>Quiet updates for focused readers.</p>
-          <form class="footer-form" data-waitlist-form data-waitlist-source="privacy-footer" aria-label="Join the FlowTrakka waitlist from the footer">
-            <label class="sr-only" for="footer-email">Academic email</label>
-            <input id="footer-email" name="email" type="email" placeholder="Enter your email" autocomplete="email" />
-            <button type="submit">Get Started</button>
-          </form>
-          <p class="footer-form-note" role="status" aria-live="polite"></p>
-        </div>
-
         <div class="footer-bottom">
           <span>Copyright © 2026 FlowTrakka. All rights reserved.</span>
           <span>Designed for focus, built for privacy.</span>

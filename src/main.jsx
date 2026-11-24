@@ -485,12 +485,26 @@ function TrophyIcon({ className }) {
   );
 }
 
+function Logo({ size = 24 }) {
+  return (
+    <svg width={size} height={size * 0.9} viewBox="88 104 336 304" aria-hidden="true" className="shrink-0">
+      <rect x="108" y="124" width="296" height="56" rx="28" fill="#1d4ed8" />
+      <rect x="108" y="228" width="176" height="56" rx="28" fill="#1d4ed8" />
+      <circle cx="344" cy="256" r="36" fill="#34d399" />
+      <rect x="108" y="332" width="236" height="56" rx="28" fill="#1d4ed8" fillOpacity=".3" />
+    </svg>
+  );
+}
+
 function Header({ currentView, setCurrentView }) {
   const isSettings = currentView === 'settings';
 
   return (
     <header className="flex h-[58px] items-center justify-between border-b border-outline bg-white px-5">
-      <h1 className="text-xl font-semibold tracking-normal text-ink">{isSettings ? 'Settings' : 'FlowTrakka'}</h1>
+      <h1 className="flex items-center gap-2.5 text-xl font-semibold tracking-tight text-ink">
+        {!isSettings && <Logo size={26} />}
+        {isSettings ? 'Settings' : 'FlowTrakka'}
+      </h1>
       <div className="flex items-center gap-3 text-ink">
         <button className="icon-button" aria-label="View insights" onClick={() => setCurrentView('insights')}>
           <HistoryIcon className="h-5 w-5" />
@@ -628,13 +642,8 @@ function RecentActivity({ sessions, compact = false, onViewAll }) {
 
 function EmptyIllustration() {
   return (
-    <div className="relative mx-auto grid h-28 w-28 place-items-center rounded-full bg-[#eef3fb] text-primary">
-      <div className="relative grid h-14 w-14 place-items-center rounded-md border-4 border-primary bg-[#d9e7ff]">
-        <span className="text-sm font-semibold">DOC</span>
-      </div>
-      <div className="absolute bottom-5 right-5 grid h-10 w-10 place-items-center rounded-full border border-outline bg-white text-variant">
-        <StopwatchIcon className="h-6 w-6" />
-      </div>
+    <div className="mx-auto grid h-28 w-28 place-items-center">
+      <Logo size={88} />
     </div>
   );
 }
@@ -953,7 +962,7 @@ function LeaderboardView({ settings, onOpenSettings }) {
   const syncTone = leaderboard.syncStatus === 'synced' ? 'text-success' : leaderboard.syncStatus === 'offline' ? 'text-[#b45309]' : 'text-variant';
 
   function podiumStyle(rank) {
-    if (rank === 1) return 'order-2 min-h-[138px] border-primary bg-primary text-white shadow-[0_14px_34px_rgba(0,76,202,0.22)]';
+    if (rank === 1) return 'order-2 min-h-[138px] border-primary bg-primary text-white shadow-[0_14px_34px_rgba(29,78,216,0.22)]';
     if (rank === 2) return 'order-1 min-h-[118px] border-[#c9d8ee] bg-white text-ink';
     return 'order-3 min-h-[104px] border-[#d9e1ee] bg-white text-ink';
   }
