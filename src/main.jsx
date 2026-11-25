@@ -1273,7 +1273,7 @@ function SettingsView({ settings, onSetEnabled, onSetPaused, onSetLeaderboardOpt
           </button>
         </div>
       </section>
-      <p className="mt-8 text-center text-sm text-variant">FlowTrakka v2.4.0 - Google Workspace Integrated</p>
+      <p className="mt-8 text-center text-sm text-variant">FlowTrakka v1.1.0</p>
       <button className="primary-button mt-8" onClick={markSaved}>{saveLabel}</button>
     </div>
   );
